@@ -1,0 +1,66 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/pages/settlement_page.gd" id="1_settlement"]
+
+[node name="SettlementPage" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_settlement")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.11, 0.14, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="Center"]
+theme_override_constants/separation = 32
+alignment = 1
+
+[node name="ResultBlock" type="ColorRect" parent="Center/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(560, 110)
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="ResultLabel" type="Label" parent="Center/Layout/ResultBlock"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 48
+text = "——"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DetailLabel" type="Label" parent="Center/Layout"]
+unique_name_in_owner = true
+theme_override_font_sizes/font_size = 24
+text = "—"
+horizontal_alignment = 1
+
+[node name="SettleButton" type="Button" parent="Center/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 84)
+theme_override_font_sizes/font_size = 28
+text = "完成结算"
+
+[node name="BackButton" type="Button" parent="Center/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 84)
+theme_override_font_sizes/font_size = 28
+disabled = true
+text = "返回局外"

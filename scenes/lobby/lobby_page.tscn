@@ -1,0 +1,46 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/pages/lobby_page.gd" id="1_lobby"]
+
+[node name="LobbyPage" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.11, 0.13, 0.19, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="Center"]
+theme_override_constants/separation = 36
+alignment = 1
+
+[node name="Title" type="Label" parent="Center/Layout"]
+theme_override_font_sizes/font_size = 56
+text = "FullHaul 满载而归"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center/Layout"]
+theme_override_font_sizes/font_size = 24
+text = "V0.1 玩法验证版 —— 局外功能（背包购买/仓库/货币）由切片 3/8 接入（占位）"
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="Center/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 96)
+theme_override_font_sizes/font_size = 32
+text = "开始一局"

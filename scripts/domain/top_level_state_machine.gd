@@ -86,8 +86,11 @@ func on_start_match_requested() -> void:
 
 
 ## LOADOUT 取消 -> 返回局外。
+## WORD-26：进入局外同样广播 OUT_OF_RUN_ENTERED，保证表现层对
+## 「每次进入局外」都有事件可订阅（界面切换由事件驱动）。
 func on_loadout_cancelled() -> void:
 	_transition(RunState.Phase.OUT_OF_RUN)
+	_bus.publish(DomainEvents.Events.OUT_OF_RUN_ENTERED, DomainEvents.OutOfRunEntered.new())
 
 
 ## LOADOUT 确认并扣款成功 -> 初始化对局。
@@ -201,8 +204,10 @@ func on_settled() -> void:
 
 
 ## SETTLED 确认 -> 回到局外，开启下一局。
+## WORD-26：进入局外同样广播 OUT_OF_RUN_ENTERED（同 on_loadout_cancelled）。
 func on_settled_confirmed() -> void:
 	_transition(RunState.Phase.OUT_OF_RUN)
+	_bus.publish(DomainEvents.Events.OUT_OF_RUN_ENTERED, DomainEvents.OutOfRunEntered.new())
 
 
 ## 是否允许从当前阶段转移到目标阶段（合法转移表）。
