@@ -37,11 +37,14 @@ func open() -> bool:
 	return true
 
 
-## 执行一条不带参数绑定的语句（DDL/DML），返回是否成功。
-func execute(sql: String) -> bool:
+## 执行一条语句（DDL/DML），可选参数绑定，返回是否成功。
+func execute(sql: String, bindings: Array = []) -> bool:
 	if not open():
 		return false
-	_connection.query(sql)
+	if bindings.is_empty():
+		_connection.query(sql)
+	else:
+		_connection.query_with_bindings(sql, bindings)
 	return true
 
 

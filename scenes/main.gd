@@ -43,7 +43,10 @@ func _boot_framework() -> void:
 
 	## 2. 组装：共享一个事件总线适配器（全部事件经全局 EventBus 流转）
 	var bus := EventBusAdapter.new()
-	_orchestrator = RunFlowOrchestrator.new(bus, _InMemoryRunStateStore.new(), ConfigLoaderAdapter.new())
+	## WORD-31：数据层经 RepositoryProvider 按配置装配（memory/sqlite）；
+	## 注入 RunFlowOrchestrator，表现层仍只依赖领域接口/事件总线。
+	var repos := RepositoryProvider.create_set()
+	_orchestrator = RunFlowOrchestrator.new(bus, _InMemoryRunStateStore.new(), ConfigLoaderAdapter.new(), repos)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
 	lobby_page.setup(_orchestrator)

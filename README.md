@@ -39,14 +39,22 @@ res://
 │   ├── application/          # 应用编排层（WORD-26）
 │   │   └── run_flow_orchestrator.gd #  一局流程编排器（表现层用例入口）
 │   ├── infrastructure/       # 基础设施/数据层（WORD-30；数据库实现，遵循 WORD-8 分层）
-│   │   └── db/              #   SQLite 数据库实现
-│   │       ├── database_connector.gd            # 连接封装（user://data/fullhaul.db）
-│   │       ├── database_initializer.gd          # 一键初始化 + 迁移（db/migrations）
-│   │       ├── run_state_codec.gd               # RunState 阶段枚举<->字符串互转
-│   │       ├── sqlite_config_data_repository.gd # IConfigDataRepository 实现
-│   │       ├── sqlite_profile_repository.gd     # IProfileRepository 实现
-│   │       ├── sqlite_run_result_repository.gd  # IRunResultRepository 实现
-│   │       └── sqlite_run_snapshot_repository.gd# IRunSnapshotRepository 实现
+│   │   ├── db/              #   SQLite 数据库实现
+│   │   │   ├── database_connector.gd            # 连接封装（user://data/fullhaul.db）
+│   │   │   ├── database_initializer.gd          # 一键初始化 + 迁移（db/migrations）
+│   │   │   ├── run_state_codec.gd               # RunState 阶段枚举<->字符串互转
+│   │   │   ├── sqlite_config_data_repository.gd # IConfigDataRepository 实现
+│   │   │   ├── sqlite_profile_repository.gd     # IProfileRepository 实现
+│   │   │   ├── sqlite_run_result_repository.gd  # IRunResultRepository 实现
+│   │   │   └── sqlite_run_snapshot_repository.gd# IRunSnapshotRepository 实现
+│   │   └── repositories/     #  内存后端仓储（WORD-31，与 SQLite 经配置切换）
+│   │       ├── in_memory_data_store.gd              # 共享内存数据源
+│   │       ├── memory_config_data_repository.gd     # IConfigDataRepository 实现
+│   │       ├── memory_profile_repository.gd         # IProfileRepository 实现
+│   │       ├── memory_run_result_repository.gd      # IRunResultRepository 实现
+│   │       ├── memory_run_snapshot_repository.gd    # IRunSnapshotRepository 实现
+│   │       ├── repository_set.gd                    # 仓储集合（装配结果）
+│   │       └── repository_provider.gd               # 按配置切换后端（memory/sqlite）
 │   └── presentation/         # 表现层（WORD-26 基础页面 V0）
 │       ├── page_router.gd    #   页面路由器（事件驱动页面切换）
 │       ├── hud.gd            #   局内 HUD（生命/背包/撤离目标占位展示）
@@ -81,8 +89,12 @@ res://
     │   ├── test_game_config.gd           # 配置单一来源（INV-15/16，AC-16/20-22）
     │   ├── test_player_profile.gd        # 局外账户（INV-12/13，AC-21）
     │   └── test_infrastructure.gd        # EventBus/ConfigLoader 基础设施
-    ├── application/          # 应用编排层接线测试（WORD-26）
-    │   └── test_run_flow_orchestrator.gd # 一局流程用例编排（最小闭环/守卫/多局隔离）
+    ├── application/          # 应用编排层接线测试（WORD-26/31）
+    │   ├── test_repository_wiring.gd          # 数据层接入编排器（WORD-31）
+    │   └── test_run_flow_orchestrator.gd      # 一局流程用例编排（最小闭环/守卫/多局隔离）
+    ├── infrastructure/       # 数据层接线测试（WORD-31）
+    │   ├── test_memory_repositories.gd        # 内存后端仓储语义
+    │   └── test_repository_provider.gd        # 仓储装配与配置切换
     ├── integration/          # 集成测试（WORD-26）
     │   └── test_main_flow_smoke.gd       # 主场景端到端冒烟（真实 Autoload 黑盒驱动）
     ├── presentation/         # 表现层接线测试（WORD-26）
@@ -172,9 +184,33 @@ GDExtension 访问）。数据库设计文档与建表脚本已入库：
 并自动应用 `db/migrations/` 下未执行的迁移（幂等）；或手动
 `sqlite3 fullhaul.db < db/schema.sql`。详见 `db/README.md`。
 
+## 数据库接入游戏实际系统（WORD-31）
+
+阶段2 已把数据层接入应用编排层（`RunFlowOrchestrator`）与组合根（`main.gd`），
+表现层仍只依赖领域接口/事件总线，无直连数据库代码：
+
+- **仓储装配与配置切换**：`RepositoryProvider` 按配置 `fullhaul/db/backend`
+  装配整套仓储（`RepositorySet`）——`memory`（内存后端，默认，无需 sqlite 扩展）
+  或 `sqlite`（SQLite 后端，需引入 `sqlite` GDExtension）。内存后端实现位于
+  `scripts/infrastructure/repositories/`（`InMemoryDataStore` + `Memory*` 仓储），
+  与 WORD-30 的 Sqlite* 实现并存、经配置切换。
+- **开局加载配置数据**：`start()` 经 `IConfigDataRepository` 读取道具/藏品、
+  容器/撤离点、背包档位、产出权重，供表现层经 `loaded_config_data()` 只读查询。
+- **局中读写领域状态**：对局初始化与局内状态变更经 `IRunSnapshotRepository`
+  写运行时快照（每局一实例，INV-14 多局隔离）。
+- **结算后写入存档**：`settle()` 经 `IRunResultRepository` 写结算记录
+  （run_id 唯一幂等 INV-09）+ 经 `IProfileRepository` 落库局外账户
+  （撤离成功携带物品 / 失败安全箱物品入库，INV-10/11）。
+- **事件驱动接线不变**：数据变更仍由既有领域事件（`RUN_INITIALIZED` /
+  `RUN_SETTLED` 等）经总线广播；仓储写入为编排侧副作用，不新增/改动事件接线。
+
+接线处单元测试：`tests/application/test_repository_wiring.gd`、
+`tests/infrastructure/test_memory_repositories.gd`、
+`tests/infrastructure/test_repository_provider.gd`。
+
 > 说明：V0.1 持久化范围为同一应用运行周期内（TBD-12）；跨重启持久化策略待产品
-> 决策。`sqlite` GDExtension 的接入与仓储数据库实现的实际接线（配置切换、事件
-> 广播）在 WORD-31（阶段2）落地。
+> 决策。SQLite 后端需随工程引入 `sqlite` GDExtension（见 `docs/database/README.md`），
+> 默认 `memory` 后端保证无该扩展时亦可运行与测试。
 
 ## 架构约束（开发规范要点）
 
