@@ -31,9 +31,22 @@ res://
 │   │   ├── event_bus_interface.gd      # 接口：IEventBus
 │   │   ├── config_loader_interface.gd  # 接口：IConfigLoader
 │   │   ├── run_state_store_interface.gd# 接口：IRunStateStore
-│   │   └── profile_repository_interface.gd # 接口：IProfileRepository
+│   │   ├── profile_repository_interface.gd # 接口：IProfileRepository（存档）
+│   │   └── repositories/    # 仓储接口（WORD-30，领域层契约，不含数据库细节）
+│   │       ├── iconfig_data_repository.gd    # 接口：IConfigDataRepository（配置）
+│   │       ├── irun_result_repository.gd     # 接口：IRunResultRepository（结算/事务）
+│   │       └── irun_snapshot_repository.gd   # 接口：IRunSnapshotRepository（运行时，可选）
 │   ├── application/          # 应用编排层（WORD-26）
 │   │   └── run_flow_orchestrator.gd #  一局流程编排器（表现层用例入口）
+│   ├── infrastructure/       # 基础设施/数据层（WORD-30；数据库实现，遵循 WORD-8 分层）
+│   │   └── db/              #   SQLite 数据库实现
+│   │       ├── database_connector.gd            # 连接封装（user://data/fullhaul.db）
+│   │       ├── database_initializer.gd          # 一键初始化 + 迁移（db/migrations）
+│   │       ├── run_state_codec.gd               # RunState 阶段枚举<->字符串互转
+│   │       ├── sqlite_config_data_repository.gd # IConfigDataRepository 实现
+│   │       ├── sqlite_profile_repository.gd     # IProfileRepository 实现
+│   │       ├── sqlite_run_result_repository.gd  # IRunResultRepository 实现
+│   │       └── sqlite_run_snapshot_repository.gd# IRunSnapshotRepository 实现
 │   └── presentation/         # 表现层（WORD-26 基础页面 V0）
 │       ├── page_router.gd    #   页面路由器（事件驱动页面切换）
 │       ├── hud.gd            #   局内 HUD（生命/背包/撤离目标占位展示）
@@ -51,6 +64,14 @@ res://
 │   └── ui/                   #   通用 UI（settlement_page 占位场景）
 ├── data/
 │   └── GameConfig.gd         # 全局配置数据（V0.1 最小语义实体，规范 6.2）
+├── db/                       # 系统数据库（WORD-30；SQLite 建表/迁移脚本）
+│   ├── schema.sql            #   当前完整模式（一键全新建库参考）
+│   ├── README.md             #   初始化/迁移操作说明
+│   └── migrations/           #   增量迁移（001_initial_schema.sql）
+├── docs/
+│   └── database/             # 数据库设计文档（WORD-30）
+│       ├── README.md         #   选型说明
+│       └── schema-design.md  #   表结构/字段/索引/ER（配置/存档/运行时三类）
 └── tests/
     ├── domain/               # 领域层地基测试（GdUnit4，映射 AC/INV）
     │   ├── test_domain_smoke.gd          # 领域层冒烟测试（独立可跑）
@@ -134,6 +155,26 @@ godot --path .
 4. 「开始撤离」→ HUD 出现撤离读条动画；点「撤离读条完成（占位）」→ 结算页
    显示「撤离成功」（或局内任意时刻点「本局时间耗尽（占位）」→「撤离失败」）；
 5. 「完成结算」→「返回局外」→ 回到局外页，可再开下一局（runId 递增）。
+
+## 系统数据库层（WORD-30）
+
+选用 **SQLite**（嵌入式、本地单文件，与 Godot 工程兼容；Godot 侧经 `sqlite`
+GDExtension 访问）。数据库设计文档与建表脚本已入库：
+
+- 设计：`docs/database/README.md`（选型）、`docs/database/schema-design.md`
+  （表结构/字段/索引/ER，配置/存档/运行时三类划分，与 WORD-27 CSV 对齐）。
+- 脚本：`db/schema.sql`（当前完整模式）+ `db/migrations/`（增量迁移机制）。
+- 分层：仓储接口定义于领域层（`scripts/domain/repositories/`），数据库实现位于
+  基础设施层（`scripts/infrastructure/db/`），遵循 WORD-8 分层——领域/表现层
+  只依赖接口，不感知数据库实现细节。
+
+**一键初始化**：应用启动时由 `DatabaseInitializer` 打开 `user://data/fullhaul.db`
+并自动应用 `db/migrations/` 下未执行的迁移（幂等）；或手动
+`sqlite3 fullhaul.db < db/schema.sql`。详见 `db/README.md`。
+
+> 说明：V0.1 持久化范围为同一应用运行周期内（TBD-12）；跨重启持久化策略待产品
+> 决策。`sqlite` GDExtension 的接入与仓储数据库实现的实际接线（配置切换、事件
+> 广播）在 WORD-31（阶段2）落地。
 
 ## 架构约束（开发规范要点）
 
