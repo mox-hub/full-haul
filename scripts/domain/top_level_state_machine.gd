@@ -1,0 +1,181 @@
+## top_level_state_machine.gd —— FullHaul 顶层状态机（领域层，纯逻辑）
+##
+## 职责：
+##   实现架构文档 §2.1 的顶层状态机，驱动一局从 BOOT 到 SETTLED 的完整
+##   生命周期流转（规范 4.2）。
+##
+## 流转关系（对应架构 §2.1）：
+##   BOOT -> OUT_OF_RUN -> LOADOUT -> RUN_INIT -> IN_RUN_LOCKED
+##        -> IN_RUN_EXTRACTABLE -> EXTRACTING -> RUN_SUCCEEDED/RUN_FAILED
+##        -> SETTLED -> OUT_OF_RUN
+##   BOOT -> ERROR（加载失败）
+##
+## 设计要点：
+##   1. 纯逻辑：不依赖任何 Godot 节点，可独立单元测试（架构原则 2）。
+##   2. 通过事件总线发布领域事件；通过 IRunStateStore 读写 RunState。
+##   3. 依赖注入：构造时注入 IEventBus、IRunStateStore、IConfigLoader，
+##      便于测试替换 mock。
+##
+## 说明：本文件为 V0.1 基础框架骨架，提供状态机的主体结构与合法转移表；
+## 各业务域（Loadout/Loot/Extract/Settlement）的细化逻辑由对应域在后续
+## 切片中接入。
+
+extends RefCounted
+class_name TopLevelStateMachine
+
+## 注入的事件总线
+var _bus: IEventBus = null
+## 注入的局内状态存储
+var _state_store: IRunStateStore = null
+## 注入的配置加载器
+var _config_loader: IConfigLoader = null
+
+## 当前 RunState（便于状态机内部直接操作）
+var _state: RunState = null
+
+
+func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader) -> void:
+	_bus = bus
+	_state_store = state_store
+	_config_loader = config_loader
+
+
+## 初始化状态机到 BOOT 阶段。
+func boot() -> void:
+	_state = _state_store.read()
+	if _state == null:
+		_state = RunState.new("", 0, 0)
+		_state.set_phase(RunState.Phase.BOOT)
+		_state_store.write(_state)
+
+
+## 启动加载完成 -> 进入局外状态。
+func on_boot_ok() -> void:
+	_transition(RunState.Phase.OUT_OF_RUN)
+	_bus.publish(DomainEvents.Events.OUT_OF_RUN_ENTERED, DomainEvents.OutOfRunEntered.new())
+
+
+## 启动加载失败 -> 进入错误态。
+func on_boot_error() -> void:
+	_transition(RunState.Phase.ERROR)
+
+
+## 局外选择开始 -> 进入 LOADOUT。
+func on_start_match_requested() -> void:
+	if not _can_transition(RunState.Phase.LOADOUT):
+		return
+	_transition(RunState.Phase.LOADOUT)
+	_bus.publish(DomainEvents.Events.START_MATCH_REQUESTED, DomainEvents.StartMatchRequested.new())
+
+
+## LOADOUT 取消 -> 返回局外。
+func on_loadout_cancelled() -> void:
+	_transition(RunState.Phase.OUT_OF_RUN)
+
+
+## LOADOUT 确认并扣款成功 -> 初始化对局。
+func on_loadout_confirmed(run_id: String) -> void:
+	_transition(RunState.Phase.RUN_INIT)
+	var cfg := _config_loader.get_config()
+	var match_duration := cfg.match_duration if cfg != null else 180
+	var extraction_duration := cfg.extraction_duration if cfg != null else 15
+	_state = RunState.new(run_id, match_duration, extraction_duration)
+	_state.set_phase(RunState.Phase.RUN_INIT)
+	_state_store.write(_state)
+	_bus.publish(DomainEvents.Events.RUN_INITIALIZED, DomainEvents.RunInitialized.new(
+		run_id, match_duration, 0, true, false))
+
+
+## 对局初始化成功 -> 进入局内锁定态（完成数<5）。
+func on_run_init_ok() -> void:
+	_transition(RunState.Phase.IN_RUN_LOCKED)
+
+
+## 容器完成数达到阈值 -> 撤离解锁（INV-07）。
+func on_required_containers_completed() -> void:
+	if _state == null:
+		return
+	_transition(RunState.Phase.IN_RUN_EXTRACTABLE)
+	_bus.publish(DomainEvents.Events.EXTRACT_UNLOCKED, DomainEvents.ExtractUnlocked.new(
+		_state.completed_container_count))
+
+
+## 开始撤离 -> EXTRACTING（INV-08）。
+func on_extract_started() -> void:
+	if not _can_transition(RunState.Phase.EXTRACTING):
+		return
+	_transition(RunState.Phase.EXTRACTING)
+	_bus.publish(DomainEvents.Events.EXTRACT_STARTED, DomainEvents.ExtractStarted.new(
+		_state.remaining_extraction_time))
+
+
+## 撤离读条完成 -> 成功结算。
+func on_extraction_complete() -> void:
+	_transition(RunState.Phase.RUN_SUCCEEDED)
+	_bus.publish(DomainEvents.Events.RUN_SUCCEEDED, DomainEvents.RunSucceeded.new(
+		_state.run_id, _state.carried_item_ids))
+
+
+## 总时间归零 -> 失败结算。
+func on_timeout() -> void:
+	_transition(RunState.Phase.RUN_FAILED)
+	_bus.publish(DomainEvents.Events.RUN_FAILED, DomainEvents.RunFailed.new(
+		_state.run_id, _state.safe_item_ids))
+
+
+## 结算完成（幂等）-> SETTLED（INV-09）。
+func on_settled() -> void:
+	if _state != null:
+		if not _state.mark_settled():
+			## 重复结算：幂等忽略，直接返回
+			return
+	_transition(RunState.Phase.SETTLED)
+	_bus.publish(DomainEvents.Events.RUN_SETTLED, DomainEvents.RunSettled.new(
+		_state.run_id if _state != null else ""))
+
+
+## SETTLED 确认 -> 回到局外，开启下一局。
+func on_settled_confirmed() -> void:
+	_transition(RunState.Phase.OUT_OF_RUN)
+
+
+## 是否允许从当前阶段转移到目标阶段（合法转移表）。
+func _can_transition(target: RunState.Phase) -> bool:
+	if _state == null:
+		return true
+	match _state.phase:
+		RunState.Phase.BOOT:
+			return target in [RunState.Phase.OUT_OF_RUN, RunState.Phase.ERROR]
+		RunState.Phase.OUT_OF_RUN:
+			return target in [RunState.Phase.LOADOUT]
+		RunState.Phase.LOADOUT:
+			return target in [RunState.Phase.RUN_INIT, RunState.Phase.OUT_OF_RUN]
+		RunState.Phase.RUN_INIT:
+			return target in [RunState.Phase.IN_RUN_LOCKED]
+		RunState.Phase.IN_RUN_LOCKED:
+			return target in [RunState.Phase.IN_RUN_EXTRACTABLE, RunState.Phase.RUN_FAILED]
+		RunState.Phase.IN_RUN_EXTRACTABLE:
+			return target in [RunState.Phase.EXTRACTING, RunState.Phase.RUN_FAILED]
+		RunState.Phase.EXTRACTING:
+			return target in [RunState.Phase.RUN_SUCCEEDED, RunState.Phase.RUN_FAILED]
+		RunState.Phase.RUN_SUCCEEDED, RunState.Phase.RUN_FAILED:
+			return target == RunState.Phase.SETTLED
+		RunState.Phase.SETTLED:
+			return target == RunState.Phase.OUT_OF_RUN
+		_:
+			return false
+
+
+## 执行状态转移（校验合法性后写入状态）。
+func _transition(target: RunState.Phase) -> void:
+	if not _can_transition(target):
+		return
+	_state.set_phase(target)
+	_state_store.write(_state)
+
+
+## 当前阶段（用于外部读取/测试断言）。
+func current_phase() -> RunState.Phase:
+	if _state == null:
+		return RunState.Phase.BOOT
+	return _state.phase
