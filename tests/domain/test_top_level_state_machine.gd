@@ -217,3 +217,33 @@ func test_domain_events_sequence() -> void:
 
 	sm.on_settled()
 	assert_that(bus.has_published(DomainEvents.Events.RUN_SETTLED)).is_true()
+
+
+## [TopLevelStateMachine] WORD-26：取消装载/结算确认返回局外均广播
+## OUT_OF_RUN_ENTERED（表现层页面切换依赖「每次进入局外」都有事件）
+func test_out_of_run_reentry_events() -> void:
+	var bus := _FakeEventBus.new()
+	var store := _InMemoryStateStore.new()
+	var sm := _sm(bus, store)
+
+	sm.boot()
+	sm.on_boot_ok()
+	assert_that(bus.published.count(DomainEvents.Events.OUT_OF_RUN_ENTERED)).is_equal(1)
+
+	## 取消装载返回局外 -> 再次广播
+	sm.on_start_match_requested()
+	sm.on_loadout_cancelled()
+	assert_that(sm.current_phase()).is_equal(RunState.Phase.OUT_OF_RUN)
+	assert_that(bus.published.count(DomainEvents.Events.OUT_OF_RUN_ENTERED)).is_equal(2)
+
+	## 完整一局后确认结算返回局外 -> 再次广播
+	sm.on_start_match_requested()
+	sm.on_loadout_confirmed("run-re")
+	sm.on_run_init_ok()
+	sm.on_required_containers_completed()
+	sm.on_extract_started()
+	sm.on_extraction_complete()
+	sm.on_settled()
+	sm.on_settled_confirmed()
+	assert_that(sm.current_phase()).is_equal(RunState.Phase.OUT_OF_RUN)
+	assert_that(bus.published.count(DomainEvents.Events.OUT_OF_RUN_ENTERED)).is_equal(3)

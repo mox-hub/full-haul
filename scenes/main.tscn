@@ -1,6 +1,80 @@
-[gd_scene format=3 uid="uid://buwv3fbnajnha"]
+[gd_scene load_steps=8 format=3 uid="uid://buwv3fbnajnha"]
 
 [ext_resource type="Script" uid="uid://c4e1xgron34ph" path="res://scenes/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/presentation/page_router.gd" id="2_router"]
+[ext_resource type="PackedScene" path="res://scenes/lobby/lobby_page.tscn" id="3_lobby"]
+[ext_resource type="PackedScene" path="res://scenes/lobby/loadout_page.tscn" id="4_loadout"]
+[ext_resource type="PackedScene" path="res://scenes/match/match_page.tscn" id="5_match"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settlement_page.tscn" id="6_settlement"]
 
-[node name="Main" type="Node" unique_id=1062278629]
+[sub_resource type="LabelSettings" id="LabelSettings_error"]
+font_size = 40
+
+[sub_resource type="LabelSettings" id="LabelSettings_error_msg"]
+font_size = 20
+
+[node name="Main" type="Node"]
 script = ExtResource("1_main")
+
+[node name="UiRoot" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LobbyPage" parent="UiRoot" instance=ExtResource("3_lobby")]
+unique_name_in_owner = true
+
+[node name="LoadoutPage" parent="UiRoot" instance=ExtResource("4_loadout")]
+unique_name_in_owner = true
+
+[node name="MatchPage" parent="UiRoot" instance=ExtResource("5_match")]
+unique_name_in_owner = true
+
+[node name="SettlementPage" parent="UiRoot" instance=ExtResource("6_settlement")]
+unique_name_in_owner = true
+
+[node name="ErrorPanel" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="ErrorPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.25, 0.08, 0.08, 1)
+
+[node name="Center" type="CenterContainer" parent="ErrorPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="ErrorPanel/Center"]
+custom_minimum_size = Vector2(880, 0)
+theme_override_constants/separation = 32
+alignment = 1
+
+[node name="ErrorTitle" type="Label" parent="ErrorPanel/Center/Layout"]
+label_settings = SubResource("LabelSettings_error")
+text = "启动失败（ERROR 态）"
+horizontal_alignment = 1
+
+[node name="ErrorMessage" type="Label" parent="ErrorPanel/Center/Layout"]
+unique_name_in_owner = true
+label_settings = SubResource("LabelSettings_error_msg")
+autowrap_mode = 3
+text = "—"
+horizontal_alignment = 1
+
+[node name="PageRouter" type="Node" parent="."]
+script = ExtResource("2_router")

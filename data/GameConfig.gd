@@ -66,9 +66,9 @@ class_name GameConfig
 }
 
 
-## ---- 视觉配置（架构 §5 VisualConfig）----
-@export var design_width := 1920
-@export var design_height := 1080
+## ---- 视觉配置（架构 §5 VisualConfig；竖屏 9:16，短边 1080）----
+@export var design_width := 1080
+@export var design_height := 1920
 
 
 ## 获取指定品质的揭晓耗时（秒）。
