@@ -1,3 +1,10 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# GdUnit4 test reports
+reports/
+
+# AI Agent specific ignores
+.opencode/
+.vscode/
