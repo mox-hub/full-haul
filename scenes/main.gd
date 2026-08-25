@@ -46,7 +46,12 @@ func _boot_framework() -> void:
 	## WORD-31：数据层经 RepositoryProvider 按配置装配（memory/sqlite）；
 	## 注入 RunFlowOrchestrator，表现层仍只依赖领域接口/事件总线。
 	var repos := RepositoryProvider.create_set()
-	_orchestrator = RunFlowOrchestrator.new(bus, _InMemoryRunStateStore.new(), ConfigLoaderAdapter.new(), repos)
+	## 切片 4：注入局内会话服务（RunSession 域，AC-03 双计时/完成数）。
+	## 一局一实例，经共享的局内状态存储读写（禁止全局单例承载运行态，P1-3）。
+	var run_state_store := _InMemoryRunStateStore.new()
+	var run_session := RunSessionService.new(run_state_store, bus, ConfigLoaderAdapter.new())
+	_orchestrator = RunFlowOrchestrator.new(bus, run_state_store, ConfigLoaderAdapter.new(), repos,
+		null, run_session)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
 	lobby_page.setup(_orchestrator)

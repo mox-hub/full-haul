@@ -33,6 +33,8 @@ var _config_loader: IConfigLoader = null
 var _repos: RepositorySet = null
 ## 注入的入场装载服务（切片 3 Loadout 域；null 表示未接线，回退占位行为）
 var _loadout_service: ILoadoutService = null
+## 注入的局内会话服务（切片 4 RunSession 域；null 表示未接线，回退占位行为）
+var _run_session_service: IRunSessionService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
@@ -51,13 +53,16 @@ var _last_run_outcome := ""
 
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
-		repositories: RepositorySet = null, loadout_service: ILoadoutService = null) -> void:
+		repositories: RepositorySet = null, loadout_service: ILoadoutService = null,
+		run_session_service: IRunSessionService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
 	_repos = repositories
 	_loadout_service = loadout_service
-	_sm = TopLevelStateMachine.new(bus, state_store, config_loader)
+	_run_session_service = run_session_service
+	_sm = TopLevelStateMachine.new(bus, state_store, config_loader,
+		loadout_service, run_session_service)
 
 
 ## 启动：BOOT -> OUT_OF_RUN（主场景引导完成后调用一次）。
@@ -119,6 +124,14 @@ func cancel_loadout() -> void:
 
 
 ## ---- 局内（探索搜集 / 撤离）----
+
+## 用例：推进本局全局计时（总时间，切片 4 RunSession 域双计时之一）。
+## 全局计时耗尽（总时间=0）时转移到 RUN_FAILED（INV-07/08）。
+## 返回是否本次发生了全局计时耗尽（已进入 RUN_FAILED）。
+## 注：表现层计时循环（_process/timer）只调用本用例推进，不直改领域状态。
+func tick_match_time(delta_seconds: float) -> bool:
+	return _sm.tick_match_time(delta_seconds)
+
 
 ## 用例（占位）：完成一个必搜容器（IN_RUN_* 内有效）。
 ## 返回完成后累计的完成容器数（供 HUD 展示）；局外调用返回 -1。

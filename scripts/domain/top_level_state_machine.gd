@@ -35,6 +35,7 @@ var _config_loader: IConfigLoader = null
 ## 既有测试与最小切片可独立运行。后续切片注入具体实现后，转移逻辑交由
 ## 对应域服务托管（架构 §3 接口原则）。
 var _loadout_service: ILoadoutService = null
+var _run_session_service: IRunSessionService = null
 var _container_search_service: IContainerSearchService = null
 var _extract_service: IExtractService = null
 var _settlement_service: ISettlementService = null
@@ -45,6 +46,7 @@ var _state: RunState = null
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
 		loadout_service: ILoadoutService = null,
+		run_session_service: IRunSessionService = null,
 		container_search_service: IContainerSearchService = null,
 		extract_service: IExtractService = null,
 		settlement_service: ISettlementService = null) -> void:
@@ -52,6 +54,7 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 	_state_store = state_store
 	_config_loader = config_loader
 	_loadout_service = loadout_service
+	_run_session_service = run_session_service
 	_container_search_service = container_search_service
 	_extract_service = extract_service
 	_settlement_service = settlement_service
@@ -96,8 +99,13 @@ func on_loadout_cancelled() -> void:
 ## LOADOUT 确认并扣款成功 -> 初始化对局。
 ## 域拆分：当注入 ILoadoutService 时，背包校验/扣款/绑定交由 Loadout 域处理；
 ## 未注入时回退到骨架自带的行为（直接创建本局 RunState）。
+## 切片 4：当注入 IRunSessionService 时，对局初始化（RUN_INIT 会话状态：runId、
+## 双计时、完成数=0、撤离锁定、settled=false，AC-03）交由 RunSession 域创建。
 func on_loadout_confirmed(run_id: String) -> void:
 	_transition(RunState.Phase.RUN_INIT)
+	if _run_session_service != null:
+		_state = _run_session_service.create_run(run_id, _match_duration(), _extraction_duration())
+		return
 	var cfg := _config_loader.get_config()
 	var match_duration := cfg.match_duration if cfg != null else 180
 	var extraction_duration := cfg.extraction_duration if cfg != null else 15
@@ -128,17 +136,35 @@ func on_required_containers_completed() -> void:
 
 
 ## 记录完成一个容器（Loot/Container 域上报，INV-06），并在达到阈值时撤离解锁
-## （INV-07）。域拆分：完成数由容器搜索域/调用方上报，顶层状态机只做阈值判定。
+## （INV-07）。域拆分：完成数由容器搜索域/调用方上报，顶层状态机只做阈值判定；
+## 切片 4：注入 IRunSessionService 时，完成数计数交由 RunSession 域维护（INV-06/07）。
 func on_container_completed() -> void:
 	if _state == null:
 		return
-	_state.completed_container_count += 1
+	if _run_session_service != null:
+		_run_session_service.on_container_completed(_state)
+	else:
+		_state.completed_container_count += 1
 	_state_store.write(_state)
 	var required := _required_completed_containers()
 	if _state.completed_container_count >= required and _can_transition(RunState.Phase.IN_RUN_EXTRACTABLE):
 		_transition(RunState.Phase.IN_RUN_EXTRACTABLE)
 		_bus.publish(DomainEvents.Events.EXTRACT_UNLOCKED, DomainEvents.ExtractUnlocked.new(
 			_state.completed_container_count))
+
+
+## 推进本局全局计时（总时间）。总时间归零 -> RUN_FAILED（INV-07/08）。
+## 域拆分：注入 IRunSessionService 时由 RunSession 域推进双计时之一；
+## 返回是否发生本次全局计时耗尽（已转移至 RUN_FAILED）。
+func tick_match_time(delta_seconds: float) -> bool:
+	if _state == null:
+		return false
+	if _run_session_service == null:
+		return false
+	if _run_session_service.tick_match_time(delta_seconds):
+		on_timeout()
+		return true
+	return false
 
 
 ## 撤离解锁所需完成容器数（读取配置单一来源 INV-16）。
@@ -148,6 +174,24 @@ func _required_completed_containers() -> int:
 		if cfg != null:
 			return cfg.required_completed_containers
 	return 5
+
+
+## 一局总时长（读取配置单一来源 INV-16；未加载时回退默认 180）。
+func _match_duration() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.match_duration
+	return 180
+
+
+## 撤离读条时长（读取配置单一来源 INV-16；未加载时回退默认 15）。
+func _extraction_duration() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.extraction_duration
+	return 15
 
 
 ## 开始撤离 -> EXTRACTING（INV-08）。
