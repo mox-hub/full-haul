@@ -1,7 +1,8 @@
 # FullHaul（满载而归）V0.1 基础框架
 
-基于 Godot 4.7 的《满载而归》V0.1 工程基础框架。本框架依据《FullHaul-架构设计-V0.1.md》
-（返工版）搭建，实现架构文档 §6 的最小架构切片地基（切片 1-2）。
+基于 Godot 4.7 的《满载而归》FullHaul V0.1 工程基础框架。本框架依据《FullHaul-架构设计-V0.1.md》
+（返工版）搭建，实现架构文档 §6 的最小架构切片地基（切片 1-2），并完成
+领域层接口骨架与容器搜索子状态机的「域拆分」（WORD-24）。
 
 ## 目录结构（架构文档 §4 建议）
 
@@ -15,7 +16,17 @@ res://
 │   │   ├── domain_events.gd  #   领域事件定义（纯数据，全局共享）
 │   │   ├── run_state.gd      #   局内状态模型（RunState，INV-09 幂等）
 │   │   ├── player_profile.gd #   局外账户模型（PlayerProfile）
-│   │   ├── top_level_state_machine.gd  # 顶层状态机（规范 4.2）
+│   │   ├── top_level_state_machine.gd     # 顶层状态机（规范 4.2，域拆分接线）
+│   │   ├── container_search_state_machine.gd # 容器搜索子状态机（规范 4.3，Loot 域）
+│   │   ├── services/         # 领域服务接口骨架（域拆分，架构 §1.1）
+│   │   │   ├── i_loadout_service.gd          # 接口：ILoadoutService
+│   │   │   ├── i_run_session_service.gd      # 接口：IRunSessionService
+│   │   │   ├── i_item_inventory_service.gd   # 接口：IItemInventoryService
+│   │   │   ├── i_container_search_service.gd # 接口：IContainerSearchService
+│   │   │   ├── i_extract_service.gd          # 接口：IExtractService
+│   │   │   ├── i_settlement_service.gd       # 接口：ISettlementService
+│   │   │   ├── i_warehouse_service.gd        # 接口：IWarehouseService
+│   │   │   └── i_transaction_service.gd      # 接口：ITransactionService
 │   │   ├── event_bus_interface.gd      # 接口：IEventBus
 │   │   ├── config_loader_interface.gd  # 接口：IConfigLoader
 │   │   ├── run_state_store_interface.gd# 接口：IRunStateStore
@@ -32,10 +43,33 @@ res://
 ├── data/
 │   └── GameConfig.gd         # 全局配置数据（V0.1 最小语义实体，规范 6.2）
 └── tests/
-    ├── domain/
-    │   └── domain_smoke_test.gd   # 领域层冒烟测试
+    ├── domain/               # 领域层地基测试（GdUnit4，映射 AC/INV）
+    │   ├── test_domain_smoke.gd          # 领域层冒烟测试（独立可跑）
+    │   ├── test_run_state.gd             # RunState 局内状态（INV-09 幂等）
+    │   ├── test_top_level_state_machine.gd  # 顶层状态机（AC-02/03/09-15）
+    │   ├── test_container_search_state_machine.gd # 容器搜索子状态机（INV-05/06）
+    │   ├── test_game_config.gd           # 配置单一来源（INV-15/16，AC-16/20-22）
+    │   ├── test_player_profile.gd        # 局外账户（INV-12/13，AC-21）
+    │   └── test_infrastructure.gd        # EventBus/ConfigLoader 基础设施
     ├── integration/          # 集成测试（待后续切片）
     └── fixtures/             # 测试夹具（待后续切片）
+```
+
+## 单元测试基建（WORD-25）
+
+工程集成 **GdUnit4**（`addons/gdUnit4`，编辑器插件已启用）作为单元测试框架，
+`tests/domain/` 下为领域层「地基测试」，按架构 §8 测试策略映射 AC/INV，
+覆盖状态机、容器搜索、配置、账户与基础设施。领域层测试均为纯逻辑（零 Godot
+节点依赖），可用 GdUnit4 命令行无头运行：
+
+```bash
+# 运行全部领域层地基测试（GdUnit4 无头模式）
+godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+     -a res://tests/domain --ignoreHeadlessMode
+
+# 仅运行指定测试套件
+godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+     -a res://tests/domain/test_top_level_state_machine.gd --ignoreHeadlessMode
 ```
 
 ## 运行与验证
@@ -44,7 +78,7 @@ Godot 4.7+ 命令行验证（无 GUI）：
 
 ```bash
 # 1. 冒烟测试（领域层纯逻辑，独立可跑）
-godot --headless --path . --script res://tests/domain/domain_smoke_test.gd
+godot --headless --path . --script res://tests/domain/test_domain_smoke.gd
 
 # 2. 启动工程（Autoload + 主场景引导）
 godot --headless --path . --quit
@@ -67,6 +101,7 @@ godot --headless --path . --quit
 ## 待办切片（架构文档 §7 实施顺序）
 
 - [x] 切片 1-2 地基：配置加载 + 事件总线 + 顶层状态机骨架 + 领域层接口
+- [x] 域拆分（WORD-24）：各 V0.1 域的服务接口骨架 + 容器搜索子状态机（规范 4.3）
 - [ ] 切片 3：Profile + Loadout（购买/选择/扣款）
 - [ ] 切片 4：RunSession（双计时、完成数）
 - [ ] 切片 5：Item & Inventory（格子与放置校验）
