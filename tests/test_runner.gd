@@ -46,6 +46,7 @@ func _ready() -> void:
 	_re_stats = RegEx.create_from_string(GDU_STATS)
 	_re_ansi = RegEx.create_from_string("\\x1b\\[[0-9;]*[a-zA-Z]")
 
+	_run_suite("res://tests/application/test_repository_wiring.gd", "test_repository_wiring")
 	_run_suite("res://tests/application/test_run_flow_orchestrator.gd", "test_run_flow_orchestrator")
 	_run_suite("res://tests/domain/test_container_search_state_machine.gd", "test_container_search_state_machine")
 	_run_suite("res://tests/domain/test_domain_smoke.gd", "test_domain_smoke")
@@ -54,6 +55,8 @@ func _ready() -> void:
 	_run_suite("res://tests/domain/test_player_profile.gd", "test_player_profile")
 	_run_suite("res://tests/domain/test_run_state.gd", "test_run_state")
 	_run_suite("res://tests/domain/test_top_level_state_machine.gd", "test_top_level_state_machine")
+	_run_suite("res://tests/infrastructure/test_memory_repositories.gd", "test_memory_repositories")
+	_run_suite("res://tests/infrastructure/test_repository_provider.gd", "test_repository_provider")
 	_run_suite("res://tests/integration/test_main_flow_smoke.gd", "test_main_flow_smoke")
 	_run_suite("res://tests/presentation/test_page_router.gd", "test_page_router")
 	_run_suite("res://tests/presentation/test_portrait_layout.gd", "test_portrait_layout")
