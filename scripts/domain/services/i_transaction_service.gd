@@ -8,15 +8,16 @@
 ##   - 货币变动（购买扣款/出售加款/结算）原子化
 ##   - 事务防重与诊断（幂等）
 ##
-## 说明：本文件为 V0.1 基础框架的「接口骨架」，仅声明契约不实现；
-## 具体实现由后续切片（架构 §7 切片 3/8）落地。
+## 说明：切片 3 已落地实现：scripts/domain/services/transaction_service.gd
+## （TransactionService）。领域层经本接口依赖事务域，实现可替换可独立测试。
 
 extends RefCounted
 class_name ITransactionService
 
 ## 执行一次货币变动事务（扣款用负 delta）。
-## 返回是否成功（余额不足/重复事务则失败，INV-12）。
-func apply_transaction(profile: PlayerProfile, type: String, amount: int) -> bool:
+## ref_id 为业务引用（如 offer_id / instance_id / run_id），用于事务防重（INV-12）。
+## 返回是否成功（余额不足/重复事务则失败，失败不产生任何变动）。
+func apply_transaction(profile: PlayerProfile, type: String, amount: int, ref_id: String = "") -> bool:
 	return false
 
 

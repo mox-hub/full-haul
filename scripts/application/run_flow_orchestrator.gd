@@ -16,8 +16,9 @@
 ##     触发转移；真实的逐件揭晓计时与双计时并行推进分别由 Loot/Extract
 ##     域切片（架构 §7 切片 6/7）接入。同刻计时优先级为规范 TBD-04，
 ##     依赖处停工提问，本层不私自补默认值。
-##   - Loadout 域（购买/选择/扣款，切片 3）未接入：确认入场即以占位
-##     配置直接初始化对局。
+##   - Loadout 域（购买/选择/扣款，切片 3）已接入：确认入场时经 LoadoutService
+##     购买扣款（走 Transaction 域原子性）并落库局外账户；未注入 LoadoutService
+##     时回退到占位行为（直接初始化对局），保证既有流程可运行。
 
 extends RefCounted
 class_name RunFlowOrchestrator
@@ -30,11 +31,16 @@ var _store: IRunStateStore = null
 var _config_loader: IConfigLoader = null
 ## 注入的仓储集合（WORD-31 数据层接线；null 表示不接线，回退纯内存运行）
 var _repos: RepositorySet = null
+## 注入的入场装载服务（切片 3 Loadout 域；null 表示未接线，回退占位行为）
+var _loadout_service: ILoadoutService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
 ## 运行序号（生成 runId，保证一局一 id，INV-14 多局隔离）
 var _run_seq := 0
+
+## 本次入场装载选定的背包档位 offerId（Loadout 页在 LOADOUT 阶段选择）
+var _selected_offer_id := ""
 
 ## 局开始加载的配置数据（IConfigDataRepository 读取；供表现层只读查询）
 var _loaded_config_data: Dictionary = {}
@@ -45,20 +51,23 @@ var _last_run_outcome := ""
 
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
-		repositories: RepositorySet = null) -> void:
+		repositories: RepositorySet = null, loadout_service: ILoadoutService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
 	_repos = repositories
+	_loadout_service = loadout_service
 	_sm = TopLevelStateMachine.new(bus, state_store, config_loader)
 
 
 ## 启动：BOOT -> OUT_OF_RUN（主场景引导完成后调用一次）。
 ## WORD-31：接入数据层后，开局加载配置数据（IConfigDataRepository）。
+## 切片 3：开局初始化局外账户（新档位档案写入初始货币，INV-16/AC-21）。
 func start() -> void:
 	_sm.boot()
 	_sm.on_boot_ok()
 	_load_config_data()
+	_ensure_initial_profile()
 
 
 ## ---- 局外 / 入场装载 ----
@@ -68,12 +77,37 @@ func request_start_match() -> void:
 	_sm.on_start_match_requested()
 
 
+## 用例：在 LOADOUT 阶段选择背包档位（切片 3 Loadout 域）。
+## 注入 LoadoutService 时校验档位存在；未注入时仅记录选择。
+## 返回是否选择成功。
+func select_backpack(offer_id: String) -> bool:
+	if _loadout_service != null:
+		if _loadout_service.get_backpack_offer(offer_id).is_empty():
+			return false
+	_selected_offer_id = offer_id
+	return true
+
+
 ## 用例：确认入场装载（LOADOUT -> RUN_INIT -> IN_RUN_LOCKED）。
-## V0.1 无购买/扣款（切片 3 未接入），以占位方式直接初始化对局。
+## 切片 3：注入 LoadoutService 时，确认入场即购买/扣款所选背包（走 Transaction
+## 域原子性，INV-12）并落库局外账户；扣款失败（余额不足等）则留在 LOADOUT。
+## 未注入时回退占位行为（直接初始化对局）。
 ## WORD-31：对局初始化后写入运行时快照（IRunSnapshotRepository）。
 func confirm_loadout() -> void:
+	if _loadout_service != null:
+		var profile := _load_profile()
+		if profile == null:
+			return
+		if not _loadout_service.purchase_backpack(profile, _selected_offer_id):
+			## 购买/扣款失败：留在 LOADOUT，等待重新选择（AC-02）
+			return
+		if _repos != null and _repos.profile != null:
+			_repos.profile.save(profile)
 	_run_seq += 1
 	_sm.on_loadout_confirmed("run-%04d" % _run_seq)
+	if _loadout_service != null:
+		## 确认绑定本局背包（购买已成功；绑定校验应通过）
+		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id)
 	## V0.1 对局初始化为同步完成（无异步加载），立即进入局内锁定态
 	_sm.on_run_init_ok()
 	_persist_run_snapshot()
@@ -163,7 +197,32 @@ func loaded_config_data() -> Dictionary:
 	return _loaded_config_data
 
 
+## 当前局外账户（切片 3；供表现层展示货币/仓库/已选背包）。
+## 未接线数据层或加载失败时返回 null。
+func current_profile() -> PlayerProfile:
+	return _load_profile()
+
+
 ## ---- WORD-31 数据层接线辅助（应用层编排侧，领域/表现层不感知）----
+
+## 开局初始化局外账户（切片 3）：全新档案写入初始货币（INV-16 单一来源，
+## AC-21 入场货币校验），仓库初始为空（架构 §5 PlayerProfile）。
+## 已初始化（有货币/已有选择/已有仓库物品）的档案不重复写入。
+func _ensure_initial_profile() -> void:
+	if _repos == null or _repos.profile == null:
+		return
+	var profile: PlayerProfile = _repos.profile.load()
+	if profile == null:
+		return
+	var is_fresh: bool = profile.currency == 0 \
+		and profile.selected_backpack_offer_id == "" \
+		and profile.warehouse_item_ids.is_empty()
+	if not is_fresh:
+		return
+	var cfg := _config_loader.get_config() if _config_loader != null else null
+	var initial := cfg.initial_currency if cfg != null else 100000
+	profile.currency = initial
+	_repos.profile.save(profile)
 
 ## 开局加载配置数据（道具/藏品、容器/撤离点、背包档位、产出权重）。
 func _load_config_data() -> void:

@@ -9,8 +9,8 @@
 ##   - 货币校验与扣款（经 Transaction 域，INV-12）
 ##   - 确认后绑定本局背包并推进顶层状态机到 RUN_INIT
 ##
-## 说明：本文件为 V0.1 基础框架的「接口骨架」，仅声明契约不实现；
-## 具体实现由后续切片（架构 §7 切片 3）落地。
+## 说明：切片 3 已落地实现：scripts/domain/services/loadout_service.gd
+## （LoadoutService）。领域层经本接口依赖 Loadout 域，实现可替换可独立测试。
 
 extends RefCounted
 class_name ILoadoutService
