@@ -1,56 +1,79 @@
-## main.gd —— FullHaul 启动入口（应用编排层 / 表现层入口）
+## main.gd —— FullHaul 启动入口（组合根 / 表现层装配）
 ##
 ## 职责：
-##   作为工程主场景，负责基础框架的启动引导（对应架构 §6 切片 1）：
-##     1. 初始化配置加载（ConfigLoader，单一来源）
-##     2. 初始化事件总线（EventBus，全局事件流转通道）
-##     3. 校验配置合法性；失败则进入 ERROR 态（规范 4.2）
-##     4. 挂载领域层顶层状态机的启动（BOOT -> OUT_OF_RUN）
+##   作为工程主场景与「组合根」，负责基础框架的启动引导与装配
+##   （架构 §6 切片 1、WORD-26 表现层接线）：
+##     1. 初始化配置加载（ConfigLoader，单一来源）；失败 -> ERROR 态展示
+##     2. 组装应用编排层（RunFlowOrchestrator）与表现层（页面/路由）
+##     3. 启动顶层状态机（BOOT -> OUT_OF_RUN），由事件驱动页面切换
 ##
-## 说明：
-##   本文件为「基础框架」的最小可运行入口，后续各域切片（Loadout/Loot/
-##   Extract/Settlement 等）将在此基础上接入场景与 UI。
+## 分层约定（WORD-26）：
+##   - 页面/路由只持有 RunFlowOrchestrator 与 IEventBus（适配 Autoload），
+##     不触碰领域层状态机与 RunState（禁止表现层直改领域状态）。
+##   - 本文件只做「装配」：依赖注入与事件接线，不含业务逻辑。
 
 extends Node
 
-## 顶层状态机实例（每局一个，由后续切片注入领域依赖）
-var _state_machine: TopLevelStateMachine = null
+## 应用编排层（一局流程用例入口）
+var _orchestrator: RunFlowOrchestrator = null
+
+@onready var lobby_page: LobbyPage = $%LobbyPage
+@onready var loadout_page: LoadoutPage = $%LoadoutPage
+@onready var match_page: MatchPage = $%MatchPage
+@onready var settlement_page: SettlementPage = $%SettlementPage
+@onready var router: PageRouter = $PageRouter
+@onready var error_panel: Control = $%ErrorPanel
+@onready var error_message: Label = $%ErrorMessage
 
 
 func _ready() -> void:
 	_boot_framework()
 
 
-## 基础框架启动引导。
+## 基础框架启动引导 + 表现层装配。
 func _boot_framework() -> void:
-	## 1. 加载并校验全局配置
+	## 1. 加载并校验全局配置；失败 -> ERROR 态展示（规范 4.2）
 	var ok := ConfigLoader.load_config()
 	if not ok:
-		## 配置加载/校验失败 -> 记录错误并进入 ERROR 态，禁止带错运行
 		push_error("FullHaul 启动失败：%s" % ConfigLoader.last_error)
+		_show_boot_error(ConfigLoader.last_error)
 		return
 
 	print("FullHaul 基础框架启动：配置加载成功（matchDuration=%d）" % ConfigLoader.config.match_duration)
 
-	## 2. 事件总线就绪（Autoload 已实例化，此处可订阅全局事件）
-	EventBus.subscribe(DomainEvents.Events.OUT_OF_RUN_ENTERED, _on_out_of_run_entered)
+	## 2. 组装：共享一个事件总线适配器（全部事件经全局 EventBus 流转）
+	var bus := EventBusAdapter.new()
+	## WORD-31：数据层经 RepositoryProvider 按配置装配（memory/sqlite）；
+	## 注入 RunFlowOrchestrator，表现层仍只依赖领域接口/事件总线。
+	var repos := RepositoryProvider.create_set()
+	_orchestrator = RunFlowOrchestrator.new(bus, _InMemoryRunStateStore.new(), ConfigLoaderAdapter.new(), repos)
 
-	## 3. 领域层依赖注入并启动顶层状态机（后续切片替换为真实存储实现）
-	var store := _InMemoryRunStateStore.new()
-	_state_machine = TopLevelStateMachine.new(EventBusAdapter.new(), store, ConfigLoaderAdapter.new())
-	_state_machine.boot()
-	_state_machine.on_boot_ok()
+	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
+	lobby_page.setup(_orchestrator)
+	loadout_page.setup(_orchestrator)
+	match_page.setup(bus, _orchestrator)
+	settlement_page.setup(_orchestrator)
+	router.setup(bus, {
+		PageRouter.PAGE_LOBBY: lobby_page,
+		PageRouter.PAGE_LOADOUT: loadout_page,
+		PageRouter.PAGE_MATCH: match_page,
+		PageRouter.PAGE_SETTLEMENT: settlement_page,
+	}, settlement_page)
 
-	print("FullHaul 基础框架就绪：进入 OUT_OF_RUN")
+	## 4. 启动顶层状态机：BOOT -> OUT_OF_RUN（事件驱动显示局外页）
+	_orchestrator.start()
+	print("FullHaul 基础框架就绪：进入 OUT_OF_RUN（当前页面 %s）" % router.current_page())
 
 
-func _on_out_of_run_entered(_payload: RefCounted) -> void:
-	print("FullHaul 事件总线：OUT_OF_RUN_ENTERED 已广播")
+## 配置加载/校验失败：展示 ERROR 态页面。
+func _show_boot_error(message: String) -> void:
+	error_message.text = message
+	error_panel.visible = true
 
 
 ## ---- 适配器：把领域层接口桥接到全局 Autoload 基础设施 ----
 
-## 事件总线适配器：领域层通过它发布/订阅到全局 EventBus
+## 事件总线适配器：领域层/表现层通过它发布/订阅到全局 EventBus
 class EventBusAdapter:
 	extends IEventBus
 

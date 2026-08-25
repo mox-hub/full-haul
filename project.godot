@@ -20,10 +20,21 @@ config/icon="res://icon.svg"
 EventBus="*res://autoload/EventBus.gd"
 ConfigLoader="*res://autoload/ConfigLoader.gd"
 
+[fullhaul]
+
+; 数据层后端：memory（内存，默认，无需 sqlite 扩展）| sqlite（需引入 sqlite GDExtension）
+db/backend="memory"
+
 [display]
 
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/window_width_override=540
+window/size/window_height_override=960
+window/size/resizable=false
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/handheld/orientation=1
 
 [editor_plugins]
 

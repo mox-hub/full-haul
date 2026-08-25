@@ -1,0 +1,73 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/hud.gd" id="1_hud"]
+
+[node name="Hud" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_hud")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 420.0
+grow_horizontal = 2
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="Column" type="VBoxContainer" parent="Panel/Margin"]
+theme_override_constants/separation = 18
+
+[node name="ObjectiveLabel" type="Label" parent="Panel/Margin/Column"]
+unique_name_in_owner = true
+theme_override_font_sizes/font_size = 30
+text = "撤离目标：完成容器 0/5（锁定）"
+
+[node name="MatchTimeLabel" type="Label" parent="Panel/Margin/Column"]
+unique_name_in_owner = true
+theme_override_font_sizes/font_size = 24
+text = "本局时长：--（计时占位）"
+
+[node name="HealthTitle" type="Label" parent="Panel/Margin/Column"]
+theme_override_font_sizes/font_size = 24
+text = "生命（占位 —— 战斗/生命域为未来方向）"
+
+[node name="HealthBlock" type="ColorRect" parent="Panel/Margin/Column"]
+custom_minimum_size = Vector2(0, 26)
+size_flags_horizontal = 3
+color = Color(0.75, 0.2, 0.2, 1)
+
+[node name="BackpackLabel" type="Label" parent="Panel/Margin/Column"]
+unique_name_in_owner = true
+theme_override_font_sizes/font_size = 24
+autowrap_mode = 3
+text = "背包（占位）：携带物品 0 件 —— 格子视图由切片 5/6 接入"
+
+[node name="ExtractBarLabel" type="Label" parent="Panel/Margin/Column"]
+unique_name_in_owner = true
+theme_override_font_sizes/font_size = 24
+text = "撤离读条（视觉占位）"
+visible = false
+
+[node name="ExtractBar" type="ProgressBar" parent="Panel/Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+size_flags_horizontal = 3
+modulate = Color(1, 0.82, 0.35, 1)
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+show_percentage = false
+visible = false
