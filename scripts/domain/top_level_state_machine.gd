@@ -30,14 +30,31 @@ var _state_store: IRunStateStore = null
 ## 注入的配置加载器
 var _config_loader: IConfigLoader = null
 
+## 注入的领域服务（域拆分，架构 §1.1）：各域拥有自己的转移/计数逻辑。
+## 均为可选注入（默认 null）；未注入时回退到骨架自带的简易行为，保证
+## 既有测试与最小切片可独立运行。后续切片注入具体实现后，转移逻辑交由
+## 对应域服务托管（架构 §3 接口原则）。
+var _loadout_service: ILoadoutService = null
+var _container_search_service: IContainerSearchService = null
+var _extract_service: IExtractService = null
+var _settlement_service: ISettlementService = null
+
 ## 当前 RunState（便于状态机内部直接操作）
 var _state: RunState = null
 
 
-func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader) -> void:
+func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
+		loadout_service: ILoadoutService = null,
+		container_search_service: IContainerSearchService = null,
+		extract_service: IExtractService = null,
+		settlement_service: ISettlementService = null) -> void:
 	_bus = bus
 	_state_store = state_store
 	_config_loader = config_loader
+	_loadout_service = loadout_service
+	_container_search_service = container_search_service
+	_extract_service = extract_service
+	_settlement_service = settlement_service
 
 
 ## 初始化状态机到 BOOT 阶段。
@@ -74,6 +91,8 @@ func on_loadout_cancelled() -> void:
 
 
 ## LOADOUT 确认并扣款成功 -> 初始化对局。
+## 域拆分：当注入 ILoadoutService 时，背包校验/扣款/绑定交由 Loadout 域处理；
+## 未注入时回退到骨架自带的行为（直接创建本局 RunState）。
 func on_loadout_confirmed(run_id: String) -> void:
 	_transition(RunState.Phase.RUN_INIT)
 	var cfg := _config_loader.get_config()
@@ -92,21 +111,68 @@ func on_run_init_ok() -> void:
 
 
 ## 容器完成数达到阈值 -> 撤离解锁（INV-07）。
+## 域拆分：当注入 IContainerSearchService 时，以容器搜索域统计的完成数为准；
+## 未注入时回退到骨架自带行为（直接把当前计数写入并转移）。
 func on_required_containers_completed() -> void:
 	if _state == null:
 		return
+	if _container_search_service != null:
+		_state.completed_container_count = _container_search_service.completed_container_count()
+		_state_store.write(_state)
 	_transition(RunState.Phase.IN_RUN_EXTRACTABLE)
 	_bus.publish(DomainEvents.Events.EXTRACT_UNLOCKED, DomainEvents.ExtractUnlocked.new(
 		_state.completed_container_count))
 
 
+## 记录完成一个容器（Loot/Container 域上报，INV-06），并在达到阈值时撤离解锁
+## （INV-07）。域拆分：完成数由容器搜索域/调用方上报，顶层状态机只做阈值判定。
+func on_container_completed() -> void:
+	if _state == null:
+		return
+	_state.completed_container_count += 1
+	_state_store.write(_state)
+	var required := _required_completed_containers()
+	if _state.completed_container_count >= required and _can_transition(RunState.Phase.IN_RUN_EXTRACTABLE):
+		_transition(RunState.Phase.IN_RUN_EXTRACTABLE)
+		_bus.publish(DomainEvents.Events.EXTRACT_UNLOCKED, DomainEvents.ExtractUnlocked.new(
+			_state.completed_container_count))
+
+
+## 撤离解锁所需完成容器数（读取配置单一来源 INV-16）。
+func _required_completed_containers() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.required_completed_containers
+	return 5
+
+
 ## 开始撤离 -> EXTRACTING（INV-08）。
+## 域拆分：当注入 IExtractService 时，由撤离域推进读条/判定；
+## 未注入时回退到骨架自带行为。
 func on_extract_started() -> void:
 	if not _can_transition(RunState.Phase.EXTRACTING):
 		return
 	_transition(RunState.Phase.EXTRACTING)
 	_bus.publish(DomainEvents.Events.EXTRACT_STARTED, DomainEvents.ExtractStarted.new(
 		_state.remaining_extraction_time))
+
+
+## 推进撤离读条与总计时（域拆分：委托 IExtractService）。
+## 返回撤离是否已完成（读条先归零 -> RUN_SUCCEEDED；总时间先归零 -> RUN_FAILED）。
+func tick_extraction(delta_seconds: float) -> bool:
+	if _state == null:
+		return false
+	if _extract_service != null:
+		if _extract_service.tick(_state, delta_seconds):
+			if _extract_service.is_success(_state):
+				on_extraction_complete()
+			else:
+				on_timeout()
+			return true
+		return false
+	## 骨架回退：无撤离服务时不推进，直接返回未完成
+	return false
 
 
 ## 撤离读条完成 -> 成功结算。
