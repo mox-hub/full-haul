@@ -56,6 +56,7 @@ func _ready() -> void:
 	_run_suite("res://tests/domain/test_top_level_state_machine.gd", "test_top_level_state_machine")
 	_run_suite("res://tests/integration/test_main_flow_smoke.gd", "test_main_flow_smoke")
 	_run_suite("res://tests/presentation/test_page_router.gd", "test_page_router")
+	_run_suite("res://tests/presentation/test_portrait_layout.gd", "test_portrait_layout")
 
 	print("Results: %d passed %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)

@@ -26,21 +26,24 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Layout" type="VBoxContainer" parent="Center"]
-theme_override_constants/separation = 36
+custom_minimum_size = Vector2(880, 0)
+theme_override_constants/separation = 44
 alignment = 1
 
 [node name="Title" type="Label" parent="Center/Layout"]
-theme_override_font_sizes/font_size = 56
+theme_override_font_sizes/font_size = 68
 text = "FullHaul 满载而归"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Center/Layout"]
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 26
+autowrap_mode = 3
 text = "V0.1 玩法验证版 —— 局外功能（背包购买/仓库/货币）由切片 3/8 接入（占位）"
 horizontal_alignment = 1
 
 [node name="StartButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(320, 96)
-theme_override_font_sizes/font_size = 32
+custom_minimum_size = Vector2(0, 132)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 38
 text = "开始一局"

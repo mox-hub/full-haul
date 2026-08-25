@@ -23,8 +23,8 @@ color = Color(0.16, 0.17, 0.2, 1)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 170.0
-offset_bottom = -160.0
+offset_top = 420.0
+offset_bottom = -340.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.22, 0.24, 0.28, 1)
@@ -35,13 +35,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -30.0
-offset_right = 240.0
-offset_bottom = 30.0
+offset_left = -400.0
+offset_top = -40.0
+offset_right = 400.0
+offset_bottom = 40.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 34
 text = "对局场景占位（探索搜集由切片 6 接入）"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -54,7 +54,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -160.0
+offset_top = -340.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -64,37 +64,42 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
 
-[node name="Buttons" type="HBoxContainer" parent="ActionBar/Margin"]
-theme_override_constants/separation = 32
-alignment = 1
+[node name="Buttons" type="GridContainer" parent="ActionBar/Margin"]
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 24
+columns = 2
 
 [node name="SearchButton" type="Button" parent="ActionBar/Margin/Buttons"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 84)
-theme_override_font_sizes/font_size = 26
+custom_minimum_size = Vector2(490, 128)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 30
 text = "搜索容器（占位）"
 
 [node name="ExtractButton" type="Button" parent="ActionBar/Margin/Buttons"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 84)
-theme_override_font_sizes/font_size = 26
+custom_minimum_size = Vector2(490, 128)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 30
 disabled = true
 text = "开始撤离"
 
 [node name="ExtractDoneButton" type="Button" parent="ActionBar/Margin/Buttons"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 84)
-theme_override_font_sizes/font_size = 26
+custom_minimum_size = Vector2(490, 128)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 30
 disabled = true
 text = "撤离读条完成（占位）"
 
 [node name="TimeoutButton" type="Button" parent="ActionBar/Margin/Buttons"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 84)
-theme_override_font_sizes/font_size = 26
+custom_minimum_size = Vector2(490, 128)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 30
 text = "本局时间耗尽（占位）"

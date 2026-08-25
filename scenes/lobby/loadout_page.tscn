@@ -26,32 +26,32 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Layout" type="VBoxContainer" parent="Center"]
-theme_override_constants/separation = 32
+custom_minimum_size = Vector2(880, 0)
+theme_override_constants/separation = 44
 alignment = 1
 
 [node name="Title" type="Label" parent="Center/Layout"]
-theme_override_font_sizes/font_size = 44
+theme_override_font_sizes/font_size = 52
 text = "入场装载（占位）"
 horizontal_alignment = 1
 
 [node name="Description" type="Label" parent="Center/Layout"]
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 26
+autowrap_mode = 3
 text = "背包购买 / 选择 / 扣款由切片 3（Profile + Loadout）接入；
 确认入场后以占位配置直接初始化对局。"
 horizontal_alignment = 1
 
-[node name="Buttons" type="HBoxContainer" parent="Center/Layout"]
-theme_override_constants/separation = 48
-alignment = 1
-
-[node name="ConfirmButton" type="Button" parent="Center/Layout/Buttons"]
+[node name="ConfirmButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(240, 80)
-theme_override_font_sizes/font_size = 28
+custom_minimum_size = Vector2(0, 120)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 34
 text = "确认入场"
 
-[node name="CancelButton" type="Button" parent="Center/Layout/Buttons"]
+[node name="CancelButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(240, 80)
-theme_override_font_sizes/font_size = 28
+custom_minimum_size = Vector2(0, 120)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 34
 text = "取消"

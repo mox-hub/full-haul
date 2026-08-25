@@ -26,12 +26,14 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Layout" type="VBoxContainer" parent="Center"]
-theme_override_constants/separation = 32
+custom_minimum_size = Vector2(880, 0)
+theme_override_constants/separation = 40
 alignment = 1
 
 [node name="ResultBlock" type="ColorRect" parent="Center/Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(560, 110)
+custom_minimum_size = Vector2(0, 150)
+size_flags_horizontal = 3
 color = Color(0.3, 0.3, 0.3, 1)
 
 [node name="ResultLabel" type="Label" parent="Center/Layout/ResultBlock"]
@@ -41,26 +43,29 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 48
+theme_override_font_sizes/font_size = 56
 text = "——"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="DetailLabel" type="Label" parent="Center/Layout"]
 unique_name_in_owner = true
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 28
+autowrap_mode = 3
 text = "—"
 horizontal_alignment = 1
 
 [node name="SettleButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 84)
-theme_override_font_sizes/font_size = 28
+custom_minimum_size = Vector2(0, 120)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 34
 text = "完成结算"
 
 [node name="BackButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 84)
-theme_override_font_sizes/font_size = 28
+custom_minimum_size = Vector2(0, 120)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 34
 disabled = true
 text = "返回局外"

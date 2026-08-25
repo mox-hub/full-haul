@@ -13,7 +13,7 @@ script = ExtResource("1_hud")
 [node name="Panel" type="Panel" parent="."]
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 170.0
+offset_bottom = 420.0
 grow_horizontal = 2
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
@@ -22,55 +22,50 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
 
-[node name="Sections" type="HBoxContainer" parent="Panel/Margin"]
-alignment = 0
+[node name="Column" type="VBoxContainer" parent="Panel/Margin"]
+theme_override_constants/separation = 18
 
-[node name="Left" type="VBoxContainer" parent="Panel/Margin/Sections"]
-theme_override_constants/separation = 12
-
-[node name="ObjectiveLabel" type="Label" parent="Panel/Margin/Sections/Left"]
+[node name="ObjectiveLabel" type="Label" parent="Panel/Margin/Column"]
 unique_name_in_owner = true
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 30
 text = "撤离目标：完成容器 0/5（锁定）"
 
-[node name="MatchTimeLabel" type="Label" parent="Panel/Margin/Sections/Left"]
+[node name="MatchTimeLabel" type="Label" parent="Panel/Margin/Column"]
 unique_name_in_owner = true
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "本局时长：--（计时占位）"
 
-[node name="Center" type="VBoxContainer" parent="Panel/Margin/Sections"]
-theme_override_constants/separation = 10
-
-[node name="HealthTitle" type="Label" parent="Panel/Margin/Sections/Center"]
-theme_override_font_sizes/font_size = 20
+[node name="HealthTitle" type="Label" parent="Panel/Margin/Column"]
+theme_override_font_sizes/font_size = 24
 text = "生命（占位 —— 战斗/生命域为未来方向）"
 
-[node name="HealthBlock" type="ColorRect" parent="Panel/Margin/Sections/Center"]
-custom_minimum_size = Vector2(300, 22)
+[node name="HealthBlock" type="ColorRect" parent="Panel/Margin/Column"]
+custom_minimum_size = Vector2(0, 26)
+size_flags_horizontal = 3
 color = Color(0.75, 0.2, 0.2, 1)
 
-[node name="BackpackLabel" type="Label" parent="Panel/Margin/Sections/Center"]
+[node name="BackpackLabel" type="Label" parent="Panel/Margin/Column"]
 unique_name_in_owner = true
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
+autowrap_mode = 3
 text = "背包（占位）：携带物品 0 件 —— 格子视图由切片 5/6 接入"
 
-[node name="Right" type="VBoxContainer" parent="Panel/Margin/Sections"]
-theme_override_constants/separation = 8
-
-[node name="ExtractBarLabel" type="Label" parent="Panel/Margin/Sections/Right"]
+[node name="ExtractBarLabel" type="Label" parent="Panel/Margin/Column"]
 unique_name_in_owner = true
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "撤离读条（视觉占位）"
 visible = false
 
-[node name="ExtractBar" type="ProgressBar" parent="Panel/Margin/Sections/Right"]
+[node name="ExtractBar" type="ProgressBar" parent="Panel/Margin/Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(360, 30)
+custom_minimum_size = Vector2(0, 40)
+size_flags_horizontal = 3
+modulate = Color(1, 0.82, 0.35, 1)
 min_value = 0.0
 max_value = 100.0
 value = 100.0
