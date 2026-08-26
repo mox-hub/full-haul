@@ -75,13 +75,21 @@ func _boot_framework() -> void:
 			var def := item_inventory.get_definition(item.definition_id) if item_inventory != null else null
 			return def.value if def != null else 0)
 	var settlement_service := SettlementService.new(warehouse_service)
+	## 切片 9：注入遥测服务（Telemetry 域，架构 §1.1 Config & Telemetry）。
+	## 订阅全部领域事件做埋点（规范 6.4：不构成产品规则来源），供诊断/验证。
+	var telemetry := TelemetryService.new(bus)
+	telemetry.start()
+	## 切片 3：注入入场装载服务（Loadout 域）。购买/扣款走 Transaction 域
+	## 原子性（INV-12）；初始货币由编排器开局初始化（AC-21）。
+	var loadout_service := LoadoutService.new(ConfigLoaderAdapter.new(),
+		TransactionService.new(repos.run_result), bus)
 	_orchestrator = RunFlowOrchestrator.new(bus, run_state_store, ConfigLoaderAdapter.new(), repos,
-		null, run_session, item_inventory, container_search, extract_service,
-		settlement_service, warehouse_service)
+		loadout_service, run_session, item_inventory, container_search, extract_service,
+		settlement_service, warehouse_service, telemetry)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
-	lobby_page.setup(_orchestrator)
-	loadout_page.setup(_orchestrator)
+	lobby_page.setup(bus, _orchestrator)
+	loadout_page.setup(bus, _orchestrator)
 	match_page.setup(bus, _orchestrator)
 	settlement_page.setup(_orchestrator)
 	router.setup(bus, {

@@ -65,7 +65,7 @@ func show_failure(payload: RefCounted) -> void:
 func mark_settled() -> void:
 	settle_button.disabled = true
 	back_button.disabled = false
-	detail_label.text += "\n（已结算，物品入库/出售由切片 8 接入）"
+	detail_label.text += "\n（已结算：携带/安全箱物品已入库仓库，可在局外出售）"
 
 
 ## 按钮回调：完成结算（RUN_SUCCEEDED/RUN_FAILED -> SETTLED）。
@@ -85,5 +85,5 @@ func _on_back_button_pressed() -> void:
 ## 物品 id 列表展示（空列表显示占位说明）。
 func _format_ids(ids: Array) -> String:
 	if ids.is_empty():
-		return "（空——物品域切片 5/6 接入后生效）"
+		return "（本局未携带/未返回物品）"
 	return "、".join(ids.map(func(id): return str(id)))

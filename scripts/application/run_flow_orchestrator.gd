@@ -47,6 +47,8 @@ var _extract_service: IExtractService = null
 var _settlement_service: ISettlementService = null
 ## 注入的仓库服务（切片 8 Warehouse 域；null 表示未接线，回退占位行为）
 var _warehouse_service: IWarehouseService = null
+## 注入的遥测服务（切片 9 Telemetry 域；null 表示未接线，仅不埋点）
+var _telemetry: ITelemetryService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
@@ -75,7 +77,8 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 		container_search_service: IContainerSearchService = null,
 		extract_service: IExtractService = null,
 		settlement_service: ISettlementService = null,
-		warehouse_service: IWarehouseService = null) -> void:
+		warehouse_service: IWarehouseService = null,
+		telemetry_service: ITelemetryService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
@@ -87,6 +90,7 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 	_extract_service = extract_service
 	_settlement_service = settlement_service
 	_warehouse_service = warehouse_service
+	_telemetry = telemetry_service
 	_sm = TopLevelStateMachine.new(bus, state_store, config_loader,
 		loadout_service, run_session_service, container_search_service, extract_service,
 		settlement_service)
@@ -123,6 +127,8 @@ func select_backpack(offer_id: String) -> bool:
 ## 用例：确认入场装载（LOADOUT -> RUN_INIT -> IN_RUN_LOCKED）。
 ## 切片 3：注入 LoadoutService 时，确认入场即购买/扣款所选背包（走 Transaction
 ## 域原子性，INV-12）并落库局外账户；扣款失败（余额不足等）则留在 LOADOUT。
+## 切片 9：若档案已持有所选档位（selected_backpack_offer_id == offerId），跳过
+## 重复购买（事务防重 INV-12 已记录过 purchase，直接复用，保证多局可再入场）。
 ## 未注入时回退占位行为（直接初始化对局）。
 ## WORD-31：对局初始化后写入运行时快照（IRunSnapshotRepository）。
 func confirm_loadout() -> void:
@@ -130,11 +136,12 @@ func confirm_loadout() -> void:
 		var profile := _load_profile()
 		if profile == null:
 			return
-		if not _loadout_service.purchase_backpack(profile, _selected_offer_id):
-			## 购买/扣款失败：留在 LOADOUT，等待重新选择（AC-02）
-			return
-		if _repos != null and _repos.profile != null:
-			_repos.profile.save(profile)
+		if profile.selected_backpack_offer_id != _selected_offer_id:
+			if not _loadout_service.purchase_backpack(profile, _selected_offer_id):
+				## 购买/扣款失败：留在 LOADOUT，等待重新选择（AC-02）
+				return
+			if _repos != null and _repos.profile != null:
+				_repos.profile.save(profile)
 	_run_seq += 1
 	_sm.on_loadout_confirmed("run-%04d" % _run_seq)
 	## 切片 6：新一局开始清空上局容器登记（INV-14 多局隔离）
@@ -174,7 +181,7 @@ func complete_container_placeholder() -> int:
 	var state: RunState = _store.read()
 	if state == null:
 		return -1
-	if state.phase != RunState.Phase.IN_RUN_LOCKED and state.phase != RunState.Phase.IN_RUN_EXTRACTABLE:
+	if not _in_run_phase():
 		return -1
 	if _container_search_service != null:
 		_placeholder_seq += 1
@@ -228,6 +235,74 @@ func complete_reveal(container_id: String, instance_id: String, definition_id: S
 	return newly_completed
 
 
+## 用例：把一件已揭晓物品携带入背包格子（切片 9 表现层接线「携带」）。
+## 经 ItemInventoryService 创建物品实例并放置到背包格子首个空位
+## （INV-01 唯一归属 / INV-04 格子合法；尺寸单一来源 INV-16）。
+## 返回是否成功携带；未注入 ItemInventoryService / 背包格未初始化 / 背包满
+## 时返回 false（不影响容器完成计数）。
+func carry_revealed_item(instance_id: String, definition_id: String,
+		size: Vector2i) -> bool:
+	if _item_inventory_service == null:
+		return false
+	if not _in_run_phase():
+		return false
+	var item: ItemInstance = _item_inventory_service.create_item(instance_id, definition_id)
+	if item == null:
+		return false
+	var grid: GridInventory = _item_inventory_service.get_grid(GridInventory.OwnerType.BACKPACK)
+	if grid == null:
+		return false
+	var at := _first_free_slot(grid, size)
+	if at == Vector2i(-1, -1):
+		return false
+	return _item_inventory_service.place_item(instance_id, GridInventory.OwnerType.BACKPACK, at)
+
+
+## 用例（占位→真携带）：完成一个必搜容器并把产出物品携带入背包（IN_RUN_* 内有效）。
+## 切片 9 表现层接线：占位搜索不再只是「完成计数」，而是登记容器 -> 打开 ->
+## 逐件揭晓 -> 把揭晓物品携带入背包格子 -> 完成容器计数（INV-06 幂等）。
+## 未注入 ContainerSearchService / ItemInventoryService 时回退到纯计数占位
+## （既有流程不受影响）。
+func search_and_carry_container() -> Dictionary:
+	var state: RunState = _store.read()
+	if state == null:
+		return {}
+	if not _in_run_phase():
+		return {}
+	if _container_search_service == null or _item_inventory_service == null:
+		var count := complete_container_placeholder()
+		return {"completed_count": count, "carried_count": 0}
+	_placeholder_seq += 1
+	var container_id := "search-%03d" % _placeholder_seq
+	var instance_id := "s-%03d" % _placeholder_seq
+	_container_search_service.open_container(container_id, 1, [instance_id])
+	var def := _first_item_definition()
+	var definition_id: String = str(def.get("definition_id", "item_battery"))
+	var rarity: String = str(def.get("rarity", "common"))
+	var value: int = int(def.get("value", 40))
+	var size := Vector2i(int(def.get("width", 1)), int(def.get("height", 1)))
+	_container_search_service.start_reveal(container_id, instance_id, rarity)
+	var carried := 0
+	if carry_revealed_item(instance_id, definition_id, size):
+		carried = 1
+	_container_search_service.complete_reveal(container_id, instance_id,
+		definition_id, rarity, value, size)
+	_sm.on_container_completed()
+	_persist_run_snapshot()
+	return {"completed_count": _store.read().completed_container_count, "carried_count": carried}
+
+
+## 挑选一件物品定义用于占位搜索产出（配置数据单一来源 INV-16）。
+## 取配置数据首条道具/藏品定义；配置未加载时回退内置 item_battery。
+func _first_item_definition() -> Dictionary:
+	var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
+	if not defs.is_empty():
+		var first_key: String = str(defs.keys()[0])
+		return defs[first_key]
+	return {"definition_id": "item_battery", "rarity": "common",
+		"value": 40, "width": 1, "height": 1}
+
+
 ## 用例：开始撤离读条（IN_RUN_EXTRACTABLE -> EXTRACTING）。
 ## 切片 7：注入 ExtractService 时，撤离域重置读条（撤离时长单一来源 INV-16）
 ## 并进入 EXTRACTING；未注入时回退占位行为（仅转移）。
@@ -245,6 +320,7 @@ func tick_extraction(delta_seconds: float) -> bool:
 		## 读条先归零 -> 成功；总时间先归零 -> 失败（INV-08）
 		_last_run_outcome = "success" \
 			if _sm.current_phase() == RunState.Phase.RUN_SUCCEEDED else "failure"
+		_snapshot_inventory_to_run()
 		_persist_run_snapshot()
 	return resolved
 
@@ -254,6 +330,7 @@ func tick_extraction(delta_seconds: float) -> bool:
 func complete_extraction_placeholder() -> void:
 	_sm.on_extraction_complete()
 	_last_run_outcome = "success"
+	_snapshot_inventory_to_run()
 	_persist_run_snapshot()
 
 
@@ -261,6 +338,7 @@ func complete_extraction_placeholder() -> void:
 func timeout_placeholder() -> void:
 	_sm.on_timeout()
 	_last_run_outcome = "failure"
+	_snapshot_inventory_to_run()
 	_persist_run_snapshot()
 
 
@@ -285,11 +363,21 @@ func settle() -> void:
 	if should_settle:
 		_sm.on_settled()
 	_persist_settlement()
+	## 切片 9 表现层接线：入库物品逐件广播 WAREHOUSE_ITEM_ADDED（结果流转处，
+	## 与 Warehouse 域「不重复发布」约定一致），驱动局外仓库/遥测更新。
+	var returned_ids: Array = state.carried_item_ids \
+		if state != null and _run_is_success(state) \
+		else (state.safe_item_ids if state != null else [])
+	for instance_id in returned_ids:
+		_bus.publish(DomainEvents.Events.WAREHOUSE_ITEM_ADDED,
+			DomainEvents.WarehouseItemAdded.new(str(instance_id)))
 
 
 ## 用例：出售一件仓库物品（切片 8 Warehouse 域，INV-12 原子事务）。
 ## 经 WarehouseService.sell_item 完成货币加款（走 Transaction 域防重）并从
 ## 仓库移除；成功后落库局外账户。返回成交价格（失败返回 0）。
+## 切片 9：成交后广播 ITEM_SOLD / CURRENCY_CHANGED（结果流转处发布，
+## 与 Warehouse 域约定一致），驱动局外货币/仓库/遥测更新。
 ## 未注入 WarehouseService 时返回 0（回退占位，既有流程不受影响）。
 func sell_warehouse_item(instance_id: String) -> int:
 	if _warehouse_service == null:
@@ -297,9 +385,15 @@ func sell_warehouse_item(instance_id: String) -> int:
 	var profile := _load_profile()
 	if profile == null:
 		return 0
+	var balance_before := profile.currency
 	var price := _warehouse_service.sell_item(profile, instance_id)
 	if price > 0 and _repos != null and _repos.profile != null:
 		_repos.profile.save(profile)
+	if price > 0:
+		_bus.publish(DomainEvents.Events.ITEM_SOLD, DomainEvents.ItemSold.new(
+			instance_id, price, balance_before, profile.currency))
+		_bus.publish(DomainEvents.Events.CURRENCY_CHANGED, DomainEvents.CurrencyChanged.new(
+			price, balance_before, profile.currency))
 	return price
 
 
@@ -370,6 +464,38 @@ func settlement_service() -> ISettlementService:
 ## 未接线时返回 null。
 func warehouse_service() -> IWarehouseService:
 	return _warehouse_service
+
+
+## 当前遥测服务（切片 9；供表现层展示/测试断言埋点）。
+## 未接线时返回 null。
+func telemetry() -> ITelemetryService:
+	return _telemetry
+
+
+## 当前已携带入背包的物品数（切片 9 表现层接线「携带」展示）。
+## 未注入 ItemInventoryService / 背包格未初始化时返回 0。
+func carried_item_count() -> int:
+	if _item_inventory_service == null:
+		return 0
+	var grid: GridInventory = _item_inventory_service.get_grid(GridInventory.OwnerType.BACKPACK)
+	return grid.item_count() if grid != null else 0
+
+
+## 本局剩余总时间（秒；供 HUD 展示）。
+func remaining_match_time() -> int:
+	var state: RunState = _store.read()
+	return state.remaining_match_time if state != null else 0
+
+
+## 本局剩余撤离读条时间（秒；供 HUD 展示）。
+func remaining_extraction_time() -> int:
+	var state: RunState = _store.read()
+	return state.remaining_extraction_time if state != null else 0
+
+
+## 当前已选背包档位 offerId（表现层展示选中态用）。
+func selected_backpack_offer() -> String:
+	return _selected_offer_id
 
 
 ## ---- WORD-31 数据层接线辅助（应用层编排侧，领域/表现层不感知）----
@@ -486,6 +612,44 @@ func _in_run_phase() -> bool:
 		return false
 	return state.phase == RunState.Phase.IN_RUN_LOCKED \
 		or state.phase == RunState.Phase.IN_RUN_EXTRACTABLE
+
+
+## 从背包格子找首个可放置空位（INV-04 格子合法）；无空位返回 (-1,-1)。
+## 自左上向右逐行扫描，第一个 can_place 通过的位置即为放置点。
+func _first_free_slot(grid: GridInventory, size: Vector2i) -> Vector2i:
+	if grid == null:
+		return Vector2i(-1, -1)
+	for y in grid.height:
+		for x in grid.width:
+			var at := Vector2i(x, y)
+			if grid.can_place(size, at):
+				return at
+	return Vector2i(-1, -1)
+
+
+## 撤离落定后快照本局携带/安全箱物品到 RunState（切片 9 表现层接线）。
+## 撤离成功（RUN_SUCCEEDED）：背包格内物品 -> carried_item_ids（INV-10）；
+## 撤离失败（RUN_FAILED）：安全箱格内物品 -> safe_item_ids（INV-11）。
+## 未注入 ItemInventoryService 时跳过（回退占位，既有流程不受影响）。
+func _snapshot_inventory_to_run() -> void:
+	if _item_inventory_service == null:
+		return
+	var state: RunState = _store.read()
+	if state == null:
+		return
+	var is_success := state.phase == RunState.Phase.RUN_SUCCEEDED
+	var grid: GridInventory = _item_inventory_service.get_grid(
+		GridInventory.OwnerType.BACKPACK if is_success else GridInventory.OwnerType.SAFE)
+	if grid == null:
+		return
+	var ids: Array = []
+	for instance_id in grid.placements:
+		ids.append(str(instance_id))
+	if is_success:
+		state.carried_item_ids = ids
+	else:
+		state.safe_item_ids = ids
+	_store.write(state)
 
 
 ## 结算时判定本局成败（切片 8）：以终局阶段为准；阶段信息缺失时回退

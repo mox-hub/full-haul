@@ -47,6 +47,24 @@ func set_objective(current: int, required: int, unlocked: bool) -> void:
 		objective_label.text = "撤离目标：完成容器 %d/%d（锁定）" % [current, required]
 
 
+## 展示本局剩余总时间（秒；由 match_page 计时循环调用，切片 4/9）。
+func set_match_time(seconds: int) -> void:
+	match_time_label.text = "本局剩余时间：%d 秒" % maxi(seconds, 0)
+
+
+## 展示已携带入背包的物品数（切片 9 携带闭环）。
+func set_carried(count: int) -> void:
+	backpack_label.text = "背包：携带物品 %d 件（已携带入背包格子）" % count
+
+
+## 展示撤离读条剩余时间（秒；EXTRACTING 期间由计时循环调用，切片 7/9）。
+func set_extract_progress(remaining_seconds: int) -> void:
+	extract_bar.visible = true
+	extract_bar_label.visible = true
+	extract_bar.value = clampf(remaining_seconds * 100.0 / 15.0, 0.0, 100.0)
+	extract_bar_label.text = "撤离读条：剩余 %d 秒" % maxi(remaining_seconds, 0)
+
+
 ## 新一局开始时复位 HUD。
 ## 本局时长不在此复位：它只由 RUN_INITIALIZED 事件数据写入（订阅顺序
 ## 无关，避免复位覆盖事件更新）。
@@ -55,7 +73,7 @@ func reset_for_new_run() -> void:
 	if _orchestrator != null:
 		required = _orchestrator.required_container_count()
 	set_objective(0, required, false)
-	backpack_label.text = "背包（占位）：携带物品 0 件 —— 格子视图由切片 5/6 接入"
+	set_carried(0)
 	extract_bar.visible = false
 	extract_bar_label.visible = false
 	if _bar_tween != null and _bar_tween.is_valid():
@@ -68,7 +86,7 @@ func _on_run_initialized(payload: RefCounted) -> void:
 	var evt := payload as DomainEvents.RunInitialized
 	if evt == null:
 		return
-	match_time_label.text = "本局时长：%d 秒（计时占位，切片 7 接入）" % evt.match_duration
+	set_match_time(evt.match_duration)
 
 
 ## [EXTRACT_UNLOCKED] 撤离目标切换为解锁态（INV-07）。

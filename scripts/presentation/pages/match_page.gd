@@ -1,20 +1,18 @@
-## match_page.gd —— FullHaul 表现层：局内主页面（占位 V0）
+## match_page.gd —— FullHaul 表现层：局内主页面
 ##
 ## 职责：
-##   局内主页骨架（WORD-26 交付项 3）：承载 HUD 与局内交互按钮，
-##   支撑搜打撤核心循环的玩法验证：
-##     - 「搜索容器（占位）」：推进必搜容器完成数（探索搜集环节占位）
-##     - 「开始撤离」：撤离解锁后可点（INV-07/08）
-##     - 「撤离读条完成（占位）/ 本局时间耗尽（占位）」：触发结算分支
+##   局内主页（WORD-26 + 切片 9 表现层接线）：
+##   - 「搜索容器」：真实容器搜索 + 把产出物品携带入背包格子（Loot 域
+##     ContainerSearchService + Item 域携带，切片 9「携带」闭环）
+##   - 「开始撤离」：撤离解锁后可点（INV-07/08），撤离读条由表现层计时
+##     循环推进（tick_extraction，切片 7）
+##   - 本局总计时由表现层 _process 推进（tick_match_time，切片 4）
+##   - 保留「撤离读条完成（占位）/ 本局时间耗尽（占位）」调试入口，
+##     供验证/测试直达结算分支（真实计时已接入，二者并存）
 ##
 ## 分层约定：
-##   按钮只调用应用编排层用例（RunFlowOrchestrator）；界面状态由
-##   事件总线事件（RUN_INITIALIZED / EXTRACT_UNLOCKED）与编排器只读
-##   查询驱动刷新，本页面不写任何领域状态。
-##
-## 占位说明：
-##   任务描述中的「战斗」环节为 V0.1 规范外未来方向（架构审核 P0-1/P0-2，
-##   战斗/生命事件已从领域事件中删除），本页不含战斗交互。
+##   按钮只调用应用编排层用例（RunFlowOrchestrator）；界面状态由事件总线
+##   事件与编排器只读查询驱动刷新，本页面不写任何领域状态。
 
 extends Control
 class_name MatchPage
@@ -64,15 +62,35 @@ func _on_extract_unlocked(_payload: RefCounted) -> void:
 	_refresh_buttons()
 
 
-## 按钮回调：搜索容器（占位）—— 探索搜集环节占位入口。
+## 表现层计时循环：推进本局总计时与撤离读条（只经编排器用例，不直改领域状态）。
+func _process(delta: float) -> void:
+	if _orchestrator == null:
+		return
+	var phase := _orchestrator.current_phase()
+	if phase == RunState.Phase.IN_RUN_LOCKED or phase == RunState.Phase.IN_RUN_EXTRACTABLE:
+		_orchestrator.tick_match_time(delta)
+		hud.set_match_time(_orchestrator.remaining_match_time())
+		hud.set_carried(_orchestrator.carried_item_count())
+	elif phase == RunState.Phase.EXTRACTING:
+		var resolved := _orchestrator.tick_extraction(delta)
+		hud.set_extract_progress(_orchestrator.remaining_extraction_time())
+		if resolved:
+			_refresh_buttons()
+
+
+## 按钮回调：搜索容器（真实 Loot 域搜索 + 携带入背包）。
 func _on_search_button_pressed() -> void:
 	if _orchestrator == null:
 		return
-	var count := _orchestrator.complete_container_placeholder()
+	var result := _orchestrator.search_and_carry_container()
+	if result.is_empty():
+		return
+	var count: int = result.get("completed_count", -1)
 	if count < 0:
 		return
 	var required := _orchestrator.required_container_count()
 	hud.set_objective(count, required, count >= required)
+	hud.set_carried(_orchestrator.carried_item_count())
 	_refresh_buttons()
 
 
@@ -84,7 +102,7 @@ func _on_extract_button_pressed() -> void:
 	_refresh_buttons()
 
 
-## 按钮回调：撤离读条完成（占位）—— 成功结算分支入口。
+## 按钮回调：撤离读条完成（调试入口，直达成功结算分支）。
 func _on_extract_done_button_pressed() -> void:
 	if _orchestrator == null:
 		return
@@ -92,7 +110,7 @@ func _on_extract_done_button_pressed() -> void:
 	_refresh_buttons()
 
 
-## 按钮回调：本局时间耗尽（占位）—— 失败结算分支入口。
+## 按钮回调：本局时间耗尽（调试入口，直达失败结算分支）。
 func _on_timeout_button_pressed() -> void:
 	if _orchestrator == null:
 		return

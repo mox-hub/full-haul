@@ -38,8 +38,24 @@ horizontal_alignment = 1
 [node name="Subtitle" type="Label" parent="Center/Layout"]
 theme_override_font_sizes/font_size = 26
 autowrap_mode = 3
-text = "V0.1 玩法验证版 —— 局外功能（背包购买/仓库/货币）由切片 3/8 接入（占位）"
+text = "V0.1 玩法验证版 —— 局外（货币/仓库/出售）"
 horizontal_alignment = 1
+
+[node name="CurrencyLabel" type="Label" parent="Center/Layout"]
+unique_name_in_owner = true
+theme_override_font_sizes/font_size = 30
+text = "货币：—"
+horizontal_alignment = 1
+
+[node name="WarehouseTitle" type="Label" parent="Center/Layout"]
+theme_override_font_sizes/font_size = 24
+text = "仓库物品（出售）："
+horizontal_alignment = 1
+
+[node name="WarehouseList" type="VBoxContainer" parent="Center/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(880, 0)
+theme_override_constants/separation = 8
 
 [node name="StartButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true

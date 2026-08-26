@@ -42,6 +42,7 @@ static func create_set() -> RepositorySet:
 ## 内存后端：共享一个 InMemoryDataStore，四仓储共读共写。
 static func _create_memory_set() -> RepositorySet:
 	var store := InMemoryDataStore.new()
+	store.seed_v01_defaults()
 	var set := RepositorySet.new()
 	set.config_data = MemoryConfigDataRepository.new(store)
 	set.profile = MemoryProfileRepository.new(store)
