@@ -47,6 +47,7 @@ func _ready() -> void:
 	_re_ansi = RegEx.create_from_string("\\x1b\\[[0-9;]*[a-zA-Z]")
 
 	_run_suite("res://tests/application/test_container_search_wiring.gd", "test_container_search_wiring")
+	_run_suite("res://tests/application/test_extract_wiring.gd", "test_extract_wiring")
 	_run_suite("res://tests/application/test_item_inventory_wiring.gd", "test_item_inventory_wiring")
 	_run_suite("res://tests/application/test_profile_loadout_wiring.gd", "test_profile_loadout_wiring")
 	_run_suite("res://tests/application/test_repository_wiring.gd", "test_repository_wiring")
@@ -55,6 +56,7 @@ func _ready() -> void:
 	_run_suite("res://tests/domain/test_container_search_service.gd", "test_container_search_service")
 	_run_suite("res://tests/domain/test_container_search_state_machine.gd", "test_container_search_state_machine")
 	_run_suite("res://tests/domain/test_domain_smoke.gd", "test_domain_smoke")
+	_run_suite("res://tests/domain/test_extract_service.gd", "test_extract_service")
 	_run_suite("res://tests/domain/test_game_config.gd", "test_game_config")
 	_run_suite("res://tests/domain/test_grid_inventory.gd", "test_grid_inventory")
 	_run_suite("res://tests/domain/test_infrastructure.gd", "test_infrastructure")

@@ -12,10 +12,10 @@
 ##     与 TopLevelStateMachine 的公开转移入口。
 ##
 ## V0.1 占位说明：
-##   - 「完成容器」「撤离读条完成」「总时间耗尽」在 V0.1 由占位用例直接
-##     触发转移；真实的逐件揭晓计时与双计时并行推进分别由 Loot/Extract
-##     域切片（架构 §7 切片 6/7）接入。同刻计时优先级为规范 TBD-04，
-##     依赖处停工提问，本层不私自补默认值。
+##   - 「完成容器」「总时间耗尽」在 V0.1 由占位用例直接触发转移；真实的
+##     逐件揭晓计时由 Loot 域切片 6 接入，双计时并行推进由 Extract 域切片 7
+##     接入（tick_extraction）。同刻计时优先级为规范 TBD-04，依赖处停工提问，
+##     本层不私自补默认值。
 ##   - Loadout 域（购买/选择/扣款，切片 3）已接入：确认入场时经 LoadoutService
 ##     购买扣款（走 Transaction 域原子性）并落库局外账户；未注入 LoadoutService
 ##     时回退到占位行为（直接初始化对局），保证既有流程可运行。
@@ -41,6 +41,8 @@ var _item_inventory_service: IItemInventoryService = null
 ## 注入的容器搜索服务（切片 6 Loot / Container 域；null 表示未接线，
 ## 回退占位行为）
 var _container_search_service: IContainerSearchService = null
+## 注入的撤离服务（切片 7 Extract 域；null 表示未接线，回退占位行为）
+var _extract_service: IExtractService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
@@ -66,7 +68,8 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 		repositories: RepositorySet = null, loadout_service: ILoadoutService = null,
 		run_session_service: IRunSessionService = null,
 		item_inventory_service: IItemInventoryService = null,
-		container_search_service: IContainerSearchService = null) -> void:
+		container_search_service: IContainerSearchService = null,
+		extract_service: IExtractService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
@@ -75,8 +78,9 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 	_run_session_service = run_session_service
 	_item_inventory_service = item_inventory_service
 	_container_search_service = container_search_service
+	_extract_service = extract_service
 	_sm = TopLevelStateMachine.new(bus, state_store, config_loader,
-		loadout_service, run_session_service, container_search_service)
+		loadout_service, run_session_service, container_search_service, extract_service)
 
 
 ## 启动：BOOT -> OUT_OF_RUN（主场景引导完成后调用一次）。
@@ -216,9 +220,24 @@ func complete_reveal(container_id: String, instance_id: String, definition_id: S
 
 
 ## 用例：开始撤离读条（IN_RUN_EXTRACTABLE -> EXTRACTING）。
+## 切片 7：注入 ExtractService 时，撤离域重置读条（撤离时长单一来源 INV-16）
+## 并进入 EXTRACTING；未注入时回退占位行为（仅转移）。
 func start_extraction() -> void:
 	_sm.on_extract_started()
 	_persist_run_snapshot()
+
+
+## 用例：推进撤离读条与总计时（并行，INV-08；切片 7 Extract 域）。
+## 返回是否本次推进使撤离阶段落定（已进入 RUN_SUCCEEDED 或 RUN_FAILED）。
+## 注：表现层计时循环（_process/timer）只调用本用例推进，不直改领域状态。
+func tick_extraction(delta_seconds: float) -> bool:
+	var resolved := _sm.tick_extraction(delta_seconds)
+	if resolved:
+		## 读条先归零 -> 成功；总时间先归零 -> 失败（INV-08）
+		_last_run_outcome = "success" \
+			if _sm.current_phase() == RunState.Phase.RUN_SUCCEEDED else "failure"
+		_persist_run_snapshot()
+	return resolved
 
 
 ## 用例（占位）：撤离读条完成（EXTRACTING -> RUN_SUCCEEDED）。
@@ -295,6 +314,12 @@ func item_inventory() -> IItemInventoryService:
 ## 未接线时返回 null。
 func container_search() -> IContainerSearchService:
 	return _container_search_service
+
+
+## 当前撤离服务（切片 7；供表现层/后续切片经接口访问）。
+## 未接线时返回 null。
+func extract_service() -> IExtractService:
+	return _extract_service
 
 
 ## ---- WORD-31 数据层接线辅助（应用层编排侧，领域/表现层不感知）----

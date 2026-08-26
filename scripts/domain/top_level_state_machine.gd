@@ -105,6 +105,7 @@ func on_loadout_confirmed(run_id: String) -> void:
 	_transition(RunState.Phase.RUN_INIT)
 	if _run_session_service != null:
 		_state = _run_session_service.create_run(run_id, _match_duration(), _extraction_duration())
+		_publish_extract_locked()
 		return
 	var cfg := _config_loader.get_config()
 	var match_duration := cfg.match_duration if cfg != null else 180
@@ -114,6 +115,7 @@ func on_loadout_confirmed(run_id: String) -> void:
 	_state_store.write(_state)
 	_bus.publish(DomainEvents.Events.RUN_INITIALIZED, DomainEvents.RunInitialized.new(
 		run_id, match_duration, 0, true, false))
+	_publish_extract_locked()
 
 
 ## 对局初始化成功 -> 进入局内锁定态（完成数<5）。
@@ -199,14 +201,23 @@ func _extraction_duration() -> int:
 
 
 ## 开始撤离 -> EXTRACTING（INV-08）。
-## 域拆分：当注入 IExtractService 时，由撤离域推进读条/判定；
+## 切片 7：当注入 IExtractService 时，先经撤离域重置读条（撤离时长单一来源
+## INV-16）再发布 EXTRACT_STARTED（携带重置后的剩余撤离时间）；
 ## 未注入时回退到骨架自带行为。
 func on_extract_started() -> void:
 	if not _can_transition(RunState.Phase.EXTRACTING):
 		return
 	_transition(RunState.Phase.EXTRACTING)
+	if _extract_service != null:
+		_extract_service.start_extraction(_state)
 	_bus.publish(DomainEvents.Events.EXTRACT_STARTED, DomainEvents.ExtractStarted.new(
 		_state.remaining_extraction_time))
+
+
+## 撤离锁定事件（INV-07）：新一局初始化时完成数 < 阈值，撤离处于锁定态。
+func _publish_extract_locked() -> void:
+	_bus.publish(DomainEvents.Events.EXTRACT_LOCKED, DomainEvents.ExtractLocked.new(
+		_state.completed_container_count if _state != null else 0))
 
 
 ## 推进撤离读条与总计时（域拆分：委托 IExtractService）。

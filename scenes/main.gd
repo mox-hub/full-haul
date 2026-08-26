@@ -58,8 +58,12 @@ func _boot_framework() -> void:
 	## 容器搜索子状态机驱动单个容器从 UNOPENED 到 COMPLETED；完成计数
 	## 幂等（INV-06）。品质揭晓耗时读取配置单一来源（INV-16）。
 	var container_search := ContainerSearchService.new(bus, ConfigLoaderAdapter.new())
+	## 切片 7：注入撤离服务（Extract 域，AC-09/10/11，INV-07/08）。
+	## 撤离锁定/解锁（完成数阈值）、15 秒撤离读条与总计时并行推进、
+	## 成功/失败判定；撤离时长与解锁阈值读取配置单一来源（INV-16）。
+	var extract_service := ExtractService.new(run_state_store, ConfigLoaderAdapter.new())
 	_orchestrator = RunFlowOrchestrator.new(bus, run_state_store, ConfigLoaderAdapter.new(), repos,
-		null, run_session, item_inventory, container_search)
+		null, run_session, item_inventory, container_search, extract_service)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
 	lobby_page.setup(_orchestrator)
