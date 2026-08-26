@@ -37,29 +37,7 @@ const HUD_O2 := 1.0
 const BASE_PAN_MAX := Vector2(110.0, 70.0)
 ## 基地视图初始位置（BaseArea 局部坐标，画布中心）
 const BASE_VIEW_HOME := Vector2(540.0, 405.0)
-
-## 品质色（仓库条目色条）
-const RARITY_COLORS := {
-	"common": Color(0.58, 0.62, 0.70),
-	"uncommon": Color(0.42, 0.72, 0.38),
-	"rare": Color(0.38, 0.60, 0.90),
-	"epic": Color(0.66, 0.44, 0.88),
-	"legendary": Color(0.95, 0.78, 0.32),
-}
-
-# ---- 像素风扁平调色板（面板/描边/强调色）----
-const COL_PANEL := Color(0.125, 0.149, 0.204)
-const COL_BORDER := Color(0.227, 0.259, 0.341)
-const COL_CHIP_BG := Color(0.149, 0.176, 0.239)
-const COL_TEXT := Color(0.91, 0.925, 0.957)
-const COL_TEXT_DIM := Color(0.604, 0.647, 0.741)
-const COL_GOLD := Color(0.949, 0.757, 0.306)
-const COL_RED := Color(0.788, 0.31, 0.275)
-const COL_RED_BORDER := Color(1.0, 0.565, 0.525)
-const COL_CELL_BG := Color(0.102, 0.122, 0.169)
-const COL_CELL_BORDER := Color(0.235, 0.267, 0.349)
-const COL_SAFE_BG := Color(0.169, 0.102, 0.118)
-const COL_SAFE_BORDER := Color(0.69, 0.283, 0.239)
+## 像素风调色板/品质色统一取自 PixelUiKit（首页/局内共用单一来源）
 
 ## 应用编排层（组合根注入；仅调用其用例方法）
 var _orchestrator: RunFlowOrchestrator = null
@@ -227,7 +205,7 @@ func _rebuild_warehouse(instance_ids: Array) -> void:
 	if instance_ids.is_empty():
 		var empty := Label.new()
 		empty.text = "仓库空空如也，快去出击搜刮吧"
-		empty.add_theme_color_override("font_color", COL_TEXT_DIM)
+		empty.add_theme_color_override("font_color", PixelUiKit.COL_TEXT_DIM)
 		empty.add_theme_font_size_override("font_size", 26)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -242,7 +220,7 @@ func _make_warehouse_row(instance_id: String) -> Control:
 	var info := _item_info(instance_id)
 	var row := PanelContainer.new()
 	row.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	row.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(Color(0.114, 0.137, 0.188), COL_BORDER))
+	row.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(PixelUiKit.COL_ROW_BG, PixelUiKit.COL_BORDER))
 	row.custom_minimum_size = Vector2(0, 76)
 	var margin := MarginContainer.new()
 	for side in ["margin_left", "margin_right"]:
@@ -255,7 +233,7 @@ func _make_warehouse_row(instance_id: String) -> Control:
 	margin.add_child(box)
 	## 品质色条（纯色小块，随行内像素风直角呈现）
 	var rarity_bar := Panel.new()
-	var rarity_color: Color = RARITY_COLORS.get(info.rarity, COL_TEXT_DIM)
+	var rarity_color: Color = PixelUiKit.RARITY_COLORS.get(info.rarity, PixelUiKit.COL_TEXT_DIM)
 	var bar_sb := StyleBoxFlat.new()
 	bar_sb.bg_color = rarity_color
 	bar_sb.anti_aliasing = false
@@ -274,7 +252,7 @@ func _make_warehouse_row(instance_id: String) -> Control:
 	sell.text = "出售"
 	sell.custom_minimum_size = Vector2(150, 58)
 	sell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_pixel_rect_button(sell, COL_RED, COL_RED_BORDER, 26, Color(1, 0.96, 0.94))
+	PixelUiKit.style_rect_button(sell, PixelUiKit.COL_RED, PixelUiKit.COL_RED_BORDER, 26, Color(1, 0.96, 0.94))
 	sell.pressed.connect(func(): _on_sell_pressed(instance_id))
 	box.add_child(sell)
 	return row
@@ -332,68 +310,23 @@ func _apply_styles() -> void:
 	o2_bar.add_theme_stylebox_override("panel",
 			PixelUiKit.inset_stylebox(Color(0.07, 0.09, 0.12), Color(0.16, 0.42, 0.5)))
 	## HUD 右上圆形按钮（仓库/背包）
-	for icon in [warehouse_icon, backpack_icon]:
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	warehouse_icon.texture = PixelUiKit.icon_texture("crate")
 	backpack_icon.texture = PixelUiKit.icon_texture("backpack")
-	_pixel_circle_button(warehouse_button, HUD_CIRCLE_D, COL_CHIP_BG, COL_BORDER, 16, COL_TEXT)
-	_pixel_circle_button(backpack_button, HUD_CIRCLE_D, COL_CHIP_BG, COL_BORDER, 16, COL_TEXT)
+	PixelUiKit.style_circle_button(warehouse_button, HUD_CIRCLE_D,
+			PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 16, PixelUiKit.COL_TEXT)
+	PixelUiKit.style_circle_button(backpack_button, HUD_CIRCLE_D,
+			PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 16, PixelUiKit.COL_TEXT)
 	for btn in [garden_button, workshop_button, market_button, tech_button]:
-		_pixel_circle_button(btn, SMALL_BUTTON_D, COL_CHIP_BG, COL_BORDER, 30, COL_TEXT)
-	_pixel_circle_button(start_button, BIG_BUTTON_D, COL_RED, COL_RED_BORDER, 46, Color(1, 0.96, 0.94))
-	_pixel_rect_button(popup_close, COL_CHIP_BG, COL_BORDER, 30, COL_TEXT)
+		PixelUiKit.style_circle_button(btn, SMALL_BUTTON_D,
+				PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
+	PixelUiKit.style_circle_button(start_button, BIG_BUTTON_D,
+			PixelUiKit.COL_RED, PixelUiKit.COL_RED_BORDER, 46, Color(1, 0.96, 0.94))
+	PixelUiKit.style_rect_button(popup_close,
+			PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
 	for panel in [grid_panel, popup_panel]:
 		panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		panel.add_theme_stylebox_override("panel", PixelUiKit.frame_stylebox(COL_PANEL, COL_BORDER))
-
-
-## 矩形像素按钮（凸台框架 9-slice；文字改由线性过滤的子标签承载，保持字体平滑）。
-func _pixel_rect_button(btn: Button, fill: Color, border: Color,
-		font_size: int, font_color: Color) -> void:
-	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	btn.add_theme_stylebox_override("normal", PixelUiKit.frame_stylebox(fill, border))
-	btn.add_theme_stylebox_override("hover", PixelUiKit.frame_stylebox(fill.lightened(0.05), border.lightened(0.08)))
-	btn.add_theme_stylebox_override("pressed", PixelUiKit.frame_stylebox(fill.darkened(0.08), border.darkened(0.1)))
-	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	_apply_button_font(btn, font_size, font_color)
-	_swap_text_to_smooth_label(btn, font_size, font_color)
-
-
-## 圆形像素按钮（整图铺放，尺寸 = 虚拟直径 × 颗粒度）。
-func _pixel_circle_button(btn: Button, d_virtual: int, fill: Color, border: Color,
-		font_size: int, font_color: Color) -> void:
-	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var side := PixelUiKit.circle_button_size(d_virtual)
-	btn.custom_minimum_size = Vector2(side, side)
-	btn.add_theme_stylebox_override("normal", PixelUiKit.circle_stylebox(d_virtual, fill, border, false))
-	btn.add_theme_stylebox_override("hover", PixelUiKit.circle_stylebox(d_virtual, fill.lightened(0.05), border.lightened(0.08), false))
-	btn.add_theme_stylebox_override("pressed", PixelUiKit.circle_stylebox(d_virtual, fill, border, true))
-	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	_apply_button_font(btn, font_size, font_color)
-	_swap_text_to_smooth_label(btn, font_size, font_color)
-
-
-## 按钮自身处于 NEAREST 过滤下，把 text 转为 LINEAR 过滤的居中子标签。
-func _swap_text_to_smooth_label(btn: Button, font_size: int, font_color: Color) -> void:
-	if btn.text == "":
-		return
-	var label := Label.new()
-	label.text = btn.text
-	btn.text = ""
-	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", font_color)
-	btn.add_child(label)
-
-
-func _apply_button_font(btn: Button, font_size: int, font_color: Color) -> void:
-	for color_key in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
-		btn.add_theme_color_override(color_key, font_color)
-	btn.add_theme_font_size_override("font_size", font_size)
+		panel.add_theme_stylebox_override("panel",
+				PixelUiKit.frame_stylebox(PixelUiKit.COL_PANEL, PixelUiKit.COL_BORDER))
 
 
 ## 生成背包/安全箱格阵（示意草图：5 列背包 + 1 列安全箱 × 4 行）。
@@ -409,9 +342,9 @@ func _make_cell(is_safe: bool) -> Control:
 	cell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	cell.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
 	if is_safe:
-		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(COL_SAFE_BG, COL_SAFE_BORDER))
+		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(PixelUiKit.COL_SAFE_BG, PixelUiKit.COL_SAFE_BORDER))
 	else:
-		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(COL_CELL_BG, COL_CELL_BORDER))
+		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(PixelUiKit.COL_CELL_BG, PixelUiKit.COL_CELL_BORDER))
 	return cell
 
 

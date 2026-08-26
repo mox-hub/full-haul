@@ -573,6 +573,16 @@ func carried_item_count() -> int:
 	return grid.item_count() if grid != null else 0
 
 
+## 本局背包格内的物品实例 id 列表（按放置顺序的只读副本；供表现层背包格
+## 渲染品质/名称，展示信息经 ItemInventoryService 物品定义解析，
+## 不耦合实例 id 命名）。
+func backpack_item_ids() -> Array:
+	if _item_inventory_service == null:
+		return []
+	var grid: GridInventory = _item_inventory_service.get_grid(GridInventory.OwnerType.BACKPACK)
+	return grid.placements.keys() if grid != null else []
+
+
 ## 本局剩余总时间（秒；供 HUD 展示）。
 func remaining_match_time() -> int:
 	var state: RunState = _store.read()

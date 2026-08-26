@@ -19,7 +19,106 @@ class_name PixelUiKit
 ## 像素颗粒：虚拟像素放大倍率（与 BaseView.PIXEL_SCALE 对齐）
 const PX := 6
 
+# ---- 共享调色板（首页/局内统一像素风）----
+const COL_PANEL := Color(0.125, 0.149, 0.204)
+const COL_BORDER := Color(0.227, 0.259, 0.341)
+const COL_CHIP_BG := Color(0.149, 0.176, 0.239)
+const COL_TEXT := Color(0.91, 0.925, 0.957)
+const COL_TEXT_DIM := Color(0.604, 0.647, 0.741)
+const COL_GOLD := Color(0.949, 0.757, 0.306)
+const COL_RED := Color(0.788, 0.31, 0.275)
+const COL_RED_BORDER := Color(1.0, 0.565, 0.525)
+const COL_CELL_BG := Color(0.102, 0.122, 0.169)
+const COL_CELL_BORDER := Color(0.235, 0.267, 0.349)
+const COL_SAFE_BG := Color(0.169, 0.102, 0.118)
+const COL_SAFE_BORDER := Color(0.69, 0.283, 0.239)
+const COL_ROW_BG := Color(0.114, 0.137, 0.188)
+
+## 品质色（物品揭晓/背包格/仓库色条共用）
+const RARITY_COLORS := {
+	"common": Color(0.58, 0.62, 0.70),
+	"uncommon": Color(0.42, 0.72, 0.38),
+	"rare": Color(0.38, 0.60, 0.90),
+	"epic": Color(0.95, 0.42, 0.40),
+	"legendary": Color(0.95, 0.78, 0.32),
+}
+
 static var _cache: Dictionary = {}
+
+
+## 矩形像素按钮（凸台框架 9-slice；文字改由线性过滤的子标签承载保持平滑）。
+static func style_rect_button(btn: Button, fill: Color, border: Color,
+		font_size: int, font_color: Color) -> void:
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.add_theme_stylebox_override("normal", frame_stylebox(fill, border))
+	btn.add_theme_stylebox_override("hover", frame_stylebox(fill.lightened(0.05), border.lightened(0.08)))
+	btn.add_theme_stylebox_override("pressed", frame_stylebox(fill.darkened(0.08), border.darkened(0.1)))
+	btn.add_theme_stylebox_override("disabled", frame_stylebox(fill.darkened(0.3), border.darkened(0.3)))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_style_button_font(btn, font_size, font_color)
+	btn.add_theme_color_override("font_disabled_color", font_color.darkened(0.45))
+	_swap_text_to_smooth_label(btn, font_size, font_color)
+
+
+## 圆形像素按钮（整图铺放，尺寸 = 虚拟直径 × 颗粒度）。
+static func style_circle_button(btn: Button, d_virtual: int, fill: Color, border: Color,
+		font_size: int, font_color: Color) -> void:
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var side := circle_button_size(d_virtual)
+	btn.custom_minimum_size = Vector2(side, side)
+	btn.add_theme_stylebox_override("normal", circle_stylebox(d_virtual, fill, border, false))
+	btn.add_theme_stylebox_override("hover", circle_stylebox(d_virtual, fill.lightened(0.05), border.lightened(0.08), false))
+	btn.add_theme_stylebox_override("pressed", circle_stylebox(d_virtual, fill, border, true))
+	btn.add_theme_stylebox_override("disabled", circle_stylebox(d_virtual, fill.darkened(0.35), border.darkened(0.35), false))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_style_button_font(btn, font_size, font_color)
+	btn.add_theme_color_override("font_disabled_color", font_color.darkened(0.45))
+	_swap_text_to_smooth_label(btn, font_size, font_color)
+
+
+static func _style_button_font(btn: Button, font_size: int, font_color: Color) -> void:
+	for color_key in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+		btn.add_theme_color_override(color_key, font_color)
+	btn.add_theme_font_size_override("font_size", font_size)
+
+
+## 按钮自身处于 NEAREST 过滤下，把 text 转为 LINEAR 过滤的居中子标签。
+static func _swap_text_to_smooth_label(btn: Button, font_size: int, font_color: Color) -> void:
+	if btn.text == "":
+		return
+	var label := Label.new()
+	label.text = btn.text
+	btn.text = ""
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", font_color)
+	btn.add_child(label)
+
+
+## 内嵌小格（背包格/安全箱格/物品格）。
+static func cell(is_safe: bool, size: float) -> Panel:
+	var cell := Panel.new()
+	cell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	cell.custom_minimum_size = Vector2(size, size)
+	if is_safe:
+		cell.add_theme_stylebox_override("panel", inset_stylebox(COL_SAFE_BG, COL_SAFE_BORDER))
+	else:
+		cell.add_theme_stylebox_override("panel", inset_stylebox(COL_CELL_BG, COL_CELL_BORDER))
+	return cell
+
+
+## 品质色内嵌格（揭晓物品/背包格物品占用态）。
+static func rarity_cell(rarity: String, size: float) -> Panel:
+	var cell := Panel.new()
+	cell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	cell.custom_minimum_size = Vector2(size, size)
+	var c: Color = RARITY_COLORS.get(rarity, COL_TEXT_DIM)
+	cell.add_theme_stylebox_override("panel", inset_stylebox(c.darkened(0.55), c))
+	return cell
 
 
 ## 圆形按钮应使用的控件边长（design px）。
@@ -161,6 +260,18 @@ const BACKPACK_PATTERN := [
 	".oooooo.",
 ]
 
+## 图案素材：沙漏（局内计时；f 框架、s 沙）
+const HOURGLASS_PATTERN := [
+	".ffffff.",
+	".fssssf.",
+	"..fssf..",
+	"...ff...",
+	"..f..f..",
+	".f....f.",
+	".ffffff.",
+	"........",
+]
+
 
 ## HUD 像素图标：coin 货币 / heart 生命 / bubble 氧气 / crate 仓库 / backpack 背包。
 static func icon_texture(kind: String) -> ImageTexture:
@@ -201,6 +312,11 @@ static func icon_texture(kind: String) -> ImageTexture:
 				"d": Color(0.24, 0.16, 0.09),
 				"g": Color(0.42, 0.5, 0.23),
 				"y": Color(0.95, 0.76, 0.31),
+			})
+		"hourglass":
+			img = _pattern_image(HOURGLASS_PATTERN, {
+				"f": Color(0.62, 0.65, 0.7),
+				"s": Color(0.95, 0.76, 0.31),
 			})
 		_:
 			img = PixelArtKit.canvas(8, 8)
