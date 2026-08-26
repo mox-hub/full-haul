@@ -26,7 +26,7 @@ func _on_frame() -> void:
 	if _frames == 40 and _stage == 0:
 		_save("lobby_preview_home.png")
 		## 打开仓库弹窗（空态）
-		var chip := _page.get_node("%WarehouseChip") as Button
+		var chip := _page.get_node("%WarehouseButton") as Button
 		chip.pressed.emit()
 		_stage = 1
 	elif _frames == 80 and _stage == 1:

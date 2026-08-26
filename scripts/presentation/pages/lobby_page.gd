@@ -26,6 +26,13 @@ const CELL_SIZE := 150.0
 ## 快捷按钮直径（虚拟像素，实际尺寸 = 虚拟 × PixelUiKit.PX）
 const SMALL_BUTTON_D := 26
 const BIG_BUTTON_D := 40
+## HUD 顶栏：生命/氧气条内可填充最大宽度（200 - 两侧内距 14×2）
+const HUD_BAR_FILL_W := 172.0
+## HUD 右上圆形按钮直径（虚拟像素）
+const HUD_CIRCLE_D := 16
+## 生命/氧气当前百分比（占位常量；生命/属性域为未来方向，接入后由事件驱动）
+const HUD_HP := 1.0
+const HUD_O2 := 1.0
 ## 基地视图长按拖动的活动范围（design px，相对初始位置）
 const BASE_PAN_MAX := Vector2(110.0, 70.0)
 ## 基地视图初始位置（BaseArea 局部坐标，画布中心）
@@ -65,12 +72,21 @@ var _base_dragging := false
 var _base_drag_mouse := Vector2.ZERO
 var _base_drag_view := Vector2.ZERO
 
-@onready var currency_chip: Button = $%CurrencyChip
-@onready var warehouse_chip: Button = $%WarehouseChip
-@onready var backpack_chip: Button = $%BackpackChip
+@onready var currency_icon: TextureRect = $%CurrencyIcon
 @onready var currency_value: Label = $%CurrencyValue
-@onready var warehouse_value: Label = $%WarehouseValue
-@onready var backpack_value: Label = $%BackpackValue
+@onready var hp_icon: TextureRect = $%HpIcon
+@onready var hp_bar: Panel = $%HpBar
+@onready var hp_fill: ColorRect = $%HpFill
+@onready var hp_pct: Label = $%HpPct
+@onready var o2_icon: TextureRect = $%O2Icon
+@onready var o2_bar: Panel = $%O2Bar
+@onready var o2_fill: ColorRect = $%O2Fill
+@onready var o2_pct: Label = $%O2Pct
+@onready var warehouse_button: Button = $%WarehouseButton
+@onready var warehouse_badge: Label = $%WarehouseBadge
+@onready var warehouse_icon: TextureRect = $%WarehouseIcon
+@onready var backpack_button: Button = $%BackpackButton
+@onready var backpack_icon: TextureRect = $%BackpackIcon
 @onready var backpack_grid: GridContainer = $%BackpackGrid
 @onready var safe_grid: GridContainer = $%SafeGrid
 @onready var grid_panel: Panel = $%GridPanel
@@ -92,7 +108,8 @@ func _ready() -> void:
 	_apply_styles()
 	_build_grids()
 	start_button.pressed.connect(_on_start_button_pressed)
-	warehouse_chip.pressed.connect(_on_warehouse_chip_pressed)
+	warehouse_button.pressed.connect(_on_warehouse_button_pressed)
+	backpack_button.pressed.connect(_on_backpack_button_pressed)
 	popup_close.pressed.connect(_on_popup_close_pressed)
 	garden_button.pressed.connect(func(): _on_placeholder_pressed("菜园"))
 	workshop_button.pressed.connect(func(): _on_placeholder_pressed("工坊"))
@@ -120,10 +137,16 @@ func _on_start_button_pressed() -> void:
 	_orchestrator.request_start_match()
 
 
-## [仓库属性栏] 打开仓库出售弹窗。
-func _on_warehouse_chip_pressed() -> void:
+## [仓库圆钮] 打开仓库出售弹窗。
+func _on_warehouse_button_pressed() -> void:
 	warehouse_popup.visible = true
 	_rebuild_warehouse(_warehouse_ids())
+
+
+## [背包圆钮] 轻提示当前背包档位。
+func _on_backpack_button_pressed() -> void:
+	var profile: PlayerProfile = _orchestrator.current_profile() if _orchestrator != null else null
+	_show_toast("背包：%s" % _offer_size_text(profile))
 
 
 func _on_popup_close_pressed() -> void:
@@ -150,17 +173,28 @@ func _on_warehouse_changed(_payload: RefCounted) -> void:
 	_refresh()
 
 
-## 刷新三属性与仓库弹窗列表（编排器只读查询 + 事件驱动）。
+## 刷新 HUD 属性与仓库弹窗列表（编排器只读查询 + 事件驱动）。
 func _refresh() -> void:
 	var profile: PlayerProfile = _orchestrator.current_profile() if _orchestrator != null else null
 	if currency_value != null:
 		currency_value.text = str(profile.currency if profile != null else 0)
-	if warehouse_value != null:
-		warehouse_value.text = str(profile.warehouse_item_ids.size() if profile != null else 0)
-	if backpack_value != null:
-		backpack_value.text = _offer_size_text(profile)
+	if warehouse_badge != null:
+		warehouse_badge.text = str(profile.warehouse_item_ids.size() if profile != null else 0)
+	_refresh_hud()
 	if warehouse_popup != null and warehouse_popup.visible:
 		_rebuild_warehouse(_warehouse_ids())
+
+
+## 刷新生命/氧气百分比条（当前为占位常量，未来由属性域事件驱动）。
+func _refresh_hud() -> void:
+	if hp_fill != null:
+		hp_fill.size = Vector2(HUD_BAR_FILL_W * HUD_HP, hp_fill.size.y)
+	if o2_fill != null:
+		o2_fill.size = Vector2(HUD_BAR_FILL_W * HUD_O2, o2_fill.size.y)
+	if hp_pct != null:
+		hp_pct.text = "%d%%" % roundi(HUD_HP * 100.0)
+	if o2_pct != null:
+		o2_pct.text = "%d%%" % roundi(HUD_O2 * 100.0)
 
 
 ## 已选背包档位的尺寸文案（如「5×5」；未购返回「未购」）。
@@ -287,8 +321,23 @@ func _show_toast(text: String) -> void:
 ## ---- 像素风样式（统一管线：PixelUiKit 低分辨率框架 -> 最近邻放大）----
 
 func _apply_styles() -> void:
-	for chip in [currency_chip, warehouse_chip, backpack_chip]:
-		_pixel_rect_button(chip, COL_CHIP_BG, COL_BORDER, 20, COL_TEXT_DIM)
+	## HUD：图标与百分比条（像素管线）
+	currency_icon.texture = PixelUiKit.icon_texture("coin")
+	hp_icon.texture = PixelUiKit.icon_texture("heart")
+	o2_icon.texture = PixelUiKit.icon_texture("bubble")
+	for bar in [hp_bar, o2_bar]:
+		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hp_bar.add_theme_stylebox_override("panel",
+			PixelUiKit.inset_stylebox(Color(0.07, 0.09, 0.12), Color(0.55, 0.22, 0.2)))
+	o2_bar.add_theme_stylebox_override("panel",
+			PixelUiKit.inset_stylebox(Color(0.07, 0.09, 0.12), Color(0.16, 0.42, 0.5)))
+	## HUD 右上圆形按钮（仓库/背包）
+	for icon in [warehouse_icon, backpack_icon]:
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	warehouse_icon.texture = PixelUiKit.icon_texture("crate")
+	backpack_icon.texture = PixelUiKit.icon_texture("backpack")
+	_pixel_circle_button(warehouse_button, HUD_CIRCLE_D, COL_CHIP_BG, COL_BORDER, 16, COL_TEXT)
+	_pixel_circle_button(backpack_button, HUD_CIRCLE_D, COL_CHIP_BG, COL_BORDER, 16, COL_TEXT)
 	for btn in [garden_button, workshop_button, market_button, tech_button]:
 		_pixel_circle_button(btn, SMALL_BUTTON_D, COL_CHIP_BG, COL_BORDER, 30, COL_TEXT)
 	_pixel_circle_button(start_button, BIG_BUTTON_D, COL_RED, COL_RED_BORDER, 46, Color(1, 0.96, 0.94))

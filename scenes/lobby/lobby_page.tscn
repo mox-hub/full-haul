@@ -21,111 +21,155 @@ color = Color(0.09, 0.106, 0.149, 1)
 
 [node name="TopBar" type="HBoxContainer" parent="."]
 anchor_right = 1.0
-offset_left = 36.0
-offset_top = 28.0
-offset_right = -36.0
-offset_bottom = 120.0
-theme_override_constants/separation = 24
-alignment = 1
+offset_left = 32.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = 116.0
+theme_override_constants/separation = 16
 
-[node name="CurrencyChip" type="Button" parent="TopBar"]
+[node name="CurrencyBox" type="HBoxContainer" parent="TopBar"]
+size_flags_vertical = 4
+theme_override_constants/separation = 6
+
+[node name="CurrencyIcon" type="TextureRect" parent="TopBar/CurrencyBox"]
 unique_name_in_owner = true
-size_flags_horizontal = 3
+custom_minimum_size = Vector2(48, 48)
+size_flags_vertical = 4
+texture_filter = 1
 
-[node name="ChipBox" type="VBoxContainer" parent="TopBar/CurrencyChip"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 8.0
-offset_right = -16.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-texture_filter = 2
-mouse_filter = 2
-alignment = 1
-
-[node name="ChipCaption" type="Label" parent="TopBar/CurrencyChip/ChipBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.604, 0.647, 0.741, 1)
-theme_override_font_sizes/font_size = 20
-text = "货币"
-horizontal_alignment = 1
-
-[node name="CurrencyValue" type="Label" parent="TopBar/CurrencyChip/ChipBox"]
+[node name="CurrencyValue" type="Label" parent="TopBar/CurrencyBox"]
 unique_name_in_owner = true
-layout_mode = 2
 theme_override_colors/font_color = Color(0.949, 0.757, 0.306, 1)
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 34
 text = "—"
-horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="WarehouseChip" type="Button" parent="TopBar"]
+[node name="HpBox" type="HBoxContainer" parent="TopBar"]
+size_flags_vertical = 4
+theme_override_constants/separation = 6
+
+[node name="HpIcon" type="TextureRect" parent="TopBar/HpBox"]
 unique_name_in_owner = true
-size_flags_horizontal = 3
+custom_minimum_size = Vector2(48, 48)
+size_flags_vertical = 4
+texture_filter = 1
 
-[node name="ChipBox" type="VBoxContainer" parent="TopBar/WarehouseChip"]
+[node name="HpBar" type="Panel" parent="TopBar/HpBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 36)
+size_flags_vertical = 4
+
+[node name="HpFill" type="ColorRect" parent="TopBar/HpBox/HpBar"]
+unique_name_in_owner = true
+offset_left = 14.0
+offset_top = 14.0
+offset_right = 186.0
+offset_bottom = 22.0
+color = Color(0.85, 0.29, 0.26, 1)
+
+[node name="HpPct" type="Label" parent="TopBar/HpBox/HpBar"]
+unique_name_in_owner = true
+texture_filter = 2
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 8.0
-offset_right = -16.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-texture_filter = 2
-mouse_filter = 2
-alignment = 1
-
-[node name="ChipCaption" type="Label" parent="TopBar/WarehouseChip/ChipBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.604, 0.647, 0.741, 1)
-theme_override_font_sizes/font_size = 20
-text = "仓库"
+theme_override_colors/font_color = Color(0.98, 0.94, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.09, 0.13, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 16
+text = "100%"
 horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="WarehouseValue" type="Label" parent="TopBar/WarehouseChip/ChipBox"]
+[node name="O2Box" type="HBoxContainer" parent="TopBar"]
+size_flags_vertical = 4
+theme_override_constants/separation = 6
+
+[node name="O2Icon" type="TextureRect" parent="TopBar/O2Box"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.925, 0.957, 1)
-theme_override_font_sizes/font_size = 30
+custom_minimum_size = Vector2(48, 48)
+size_flags_vertical = 4
+texture_filter = 1
+
+[node name="O2Bar" type="Panel" parent="TopBar/O2Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 36)
+size_flags_vertical = 4
+
+[node name="O2Fill" type="ColorRect" parent="TopBar/O2Box/O2Bar"]
+unique_name_in_owner = true
+offset_left = 14.0
+offset_top = 14.0
+offset_right = 186.0
+offset_bottom = 22.0
+color = Color(0.36, 0.78, 0.88, 1)
+
+[node name="O2Pct" type="Label" parent="TopBar/O2Box/O2Bar"]
+unique_name_in_owner = true
+texture_filter = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(0.98, 0.94, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.09, 0.13, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 16
+text = "100%"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TopSpacer" type="Control" parent="TopBar"]
+size_flags_horizontal = 3
+
+[node name="WarehouseButton" type="Button" parent="TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+size_flags_vertical = 4
+
+[node name="WarehouseIcon" type="TextureRect" parent="TopBar/WarehouseButton"]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -24.0
+offset_top = -24.0
+offset_right = 24.0
+offset_bottom = 24.0
+texture_filter = 1
+
+[node name="WarehouseBadge" type="Label" parent="TopBar/WarehouseButton"]
+unique_name_in_owner = true
+texture_filter = 2
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -26.0
+theme_override_colors/font_color = Color(0.949, 0.757, 0.306, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.09, 0.13, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 16
 text = "0"
 horizontal_alignment = 1
 
-[node name="BackpackChip" type="Button" parent="TopBar"]
+[node name="BackpackButton" type="Button" parent="TopBar"]
 unique_name_in_owner = true
-size_flags_horizontal = 3
+custom_minimum_size = Vector2(96, 96)
+size_flags_vertical = 4
 
-[node name="ChipBox" type="VBoxContainer" parent="TopBar/BackpackChip"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 8.0
-offset_right = -16.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-texture_filter = 2
-mouse_filter = 2
-alignment = 1
-
-[node name="ChipCaption" type="Label" parent="TopBar/BackpackChip/ChipBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.604, 0.647, 0.741, 1)
-theme_override_font_sizes/font_size = 20
-text = "背包"
-horizontal_alignment = 1
-
-[node name="BackpackValue" type="Label" parent="TopBar/BackpackChip/ChipBox"]
+[node name="BackpackIcon" type="TextureRect" parent="TopBar/BackpackButton"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.925, 0.957, 1)
-theme_override_font_sizes/font_size = 30
-text = "未购"
-horizontal_alignment = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -24.0
+offset_top = -24.0
+offset_right = 24.0
+offset_bottom = 24.0
+texture_filter = 1
 
 [node name="BaseArea" type="Control" parent="."]
 anchor_right = 1.0

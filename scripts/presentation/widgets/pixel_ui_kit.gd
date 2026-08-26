@@ -121,3 +121,103 @@ static func _key(parts: Array) -> String:
 	for p in parts:
 		out += str(p) + "|"
 	return out
+
+
+## ---- 像素图标（HUD 用，8×8 虚拟画布 × PX）----
+
+## 图案素材：生命（红心，p 为高光、d 为暗部）
+const HEART_PATTERN := [
+	".##..##.",
+	"#p######",
+	"########",
+	"########",
+	".######.",
+	"..dddd..",
+	"...dd...",
+	"........",
+]
+
+## 图案素材：仓库（木箱）
+const CRATE_PATTERN := [
+	"oooooooo",
+	"owwwwwwo",
+	"olwwwwwo",
+	"oddddddo",
+	"owwwwwwo",
+	"olwwwwwo",
+	"owwwwwwo",
+	"oooooooo",
+]
+
+## 图案素材：背包（含提手与金色扣带）
+const BACKPACK_PATTERN := [
+	"..dddd..",
+	".oo..oo.",
+	"oooooooo",
+	"oggggggo",
+	"oggggggo",
+	"oooyyooo",
+	"oggggggo",
+	".oooooo.",
+]
+
+
+## HUD 像素图标：coin 货币 / heart 生命 / bubble 氧气 / crate 仓库 / backpack 背包。
+static func icon_texture(kind: String) -> ImageTexture:
+	var key := "icon|" + kind
+	if _cache.has(key):
+		return _cache[key]
+	var img: Image
+	match kind:
+		"coin":
+			img = PixelArtKit.canvas(8, 8)
+			PixelArtKit.ellipse(img, 4, 4, 3, 3, Color(0.44, 0.33, 0.09))
+			PixelArtKit.ellipse(img, 4, 4, 2, 2, Color(0.95, 0.76, 0.31))
+			PixelArtKit.hline(img, 2, 4, 2, Color(1, 0.93, 0.66))
+			PixelArtKit.px(img, 4, 4, Color(0.72, 0.53, 0.13))
+		"heart":
+			img = _pattern_image(HEART_PATTERN, {
+				"#": Color(0.85, 0.29, 0.26),
+				"d": Color(0.6, 0.16, 0.16),
+				"p": Color(0.99, 0.65, 0.6),
+			})
+		"bubble":
+			img = PixelArtKit.canvas(8, 8)
+			PixelArtKit.ellipse(img, 4, 4, 3, 3, Color(0.13, 0.4, 0.5))
+			PixelArtKit.ellipse(img, 4, 4, 2, 2, Color(0.36, 0.78, 0.88))
+			PixelArtKit.px(img, 3, 2, Color(0.85, 0.97, 1))
+			PixelArtKit.px(img, 2, 3, Color(0.85, 0.97, 1))
+			PixelArtKit.px(img, 7, 1, Color(0.36, 0.78, 0.88))
+		"crate":
+			img = _pattern_image(CRATE_PATTERN, {
+				"o": Color(0.29, 0.2, 0.1),
+				"w": Color(0.54, 0.35, 0.18),
+				"l": Color(0.65, 0.44, 0.23),
+				"d": Color(0.42, 0.27, 0.14),
+			})
+		"backpack":
+			img = _pattern_image(BACKPACK_PATTERN, {
+				"o": Color(0.24, 0.16, 0.09),
+				"d": Color(0.24, 0.16, 0.09),
+				"g": Color(0.42, 0.5, 0.23),
+				"y": Color(0.95, 0.76, 0.31),
+			})
+		_:
+			img = PixelArtKit.canvas(8, 8)
+	var tex := ImageTexture.create_from_image(PixelArtKit.magnify(img, PX))
+	_cache[key] = tex
+	return tex
+
+
+## 按字符图案绘制像素图（'.' 与未映射字符为透明）。
+static func _pattern_image(rows: Array, palette: Dictionary) -> Image:
+	var h := rows.size()
+	var w := (rows[0] as String).length()
+	var img := PixelArtKit.canvas(w, h)
+	for y in h:
+		var line: String = rows[y]
+		for x in w:
+			var ch := line[x]
+			if palette.has(ch):
+				PixelArtKit.px(img, x, y, palette[ch])
+	return img
