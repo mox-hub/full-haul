@@ -35,6 +35,9 @@ var _repos: RepositorySet = null
 var _loadout_service: ILoadoutService = null
 ## 注入的局内会话服务（切片 4 RunSession 域；null 表示未接线，回退占位行为）
 var _run_session_service: IRunSessionService = null
+## 注入的物品与背包服务（切片 5 Item & Inventory 域；null 表示未接线，
+## 回退占位行为）
+var _item_inventory_service: IItemInventoryService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
@@ -54,13 +57,15 @@ var _last_run_outcome := ""
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
 		repositories: RepositorySet = null, loadout_service: ILoadoutService = null,
-		run_session_service: IRunSessionService = null) -> void:
+		run_session_service: IRunSessionService = null,
+		item_inventory_service: IItemInventoryService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
 	_repos = repositories
 	_loadout_service = loadout_service
 	_run_session_service = run_session_service
+	_item_inventory_service = item_inventory_service
 	_sm = TopLevelStateMachine.new(bus, state_store, config_loader,
 		loadout_service, run_session_service)
 
@@ -113,6 +118,9 @@ func confirm_loadout() -> void:
 	if _loadout_service != null:
 		## 确认绑定本局背包（购买已成功；绑定校验应通过）
 		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id)
+	## 切片 5：绑定本局背包 + 安全箱格子（尺寸单一来源 INV-16）；
+	## 注入 ItemInventoryService 时初始化两格，供局内放置物品使用
+	_setup_inventory_grids()
 	## V0.1 对局初始化为同步完成（无异步加载），立即进入局内锁定态
 	_sm.on_run_init_ok()
 	_persist_run_snapshot()
@@ -216,7 +224,35 @@ func current_profile() -> PlayerProfile:
 	return _load_profile()
 
 
+## 当前物品与背包服务（切片 5；供表现层/后续切片经接口访问）。
+## 未接线时返回 null。
+func item_inventory() -> IItemInventoryService:
+	return _item_inventory_service
+
+
 ## ---- WORD-31 数据层接线辅助（应用层编排侧，领域/表现层不感知）----
+
+## 切片 5：确认入场后按选定档位初始化本局背包格子 + 安全箱格子
+## （INV-04 背包/安全箱语义分离；尺寸单一来源 INV-16）。
+## 未注入 ItemInventoryService 时跳过（回退占位，既有流程不受影响）。
+func _setup_inventory_grids() -> void:
+	if _item_inventory_service == null:
+		return
+	var offer := _loadout_service.get_backpack_offer(_selected_offer_id) \
+		if _loadout_service != null else {}
+	if offer.is_empty():
+		var cfg := _config_loader.get_config() if _config_loader != null else null
+		offer = cfg.get_backpack_offer(_selected_offer_id) if cfg != null else {}
+	if offer.is_empty():
+		return
+	var grid_width: int = offer.get("grid_width", 0)
+	var grid_height: int = offer.get("grid_height", 0)
+	_item_inventory_service.setup_backpack(grid_width, grid_height)
+	var safe := _config_loader.get_config().safe_container \
+		if _config_loader != null and _config_loader.get_config() != null else {}
+	_item_inventory_service.setup_safe(
+		int(safe.get("grid_width", 2)), int(safe.get("grid_height", 2)))
+
 
 ## 开局初始化局外账户（切片 3）：全新档案写入初始货币（INV-16 单一来源，
 ## AC-21 入场货币校验），仓库初始为空（架构 §5 PlayerProfile）。
