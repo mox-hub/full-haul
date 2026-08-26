@@ -184,15 +184,39 @@ func test_new_run_resets_container_registry() -> void:
 	_complete_one(orch, "c-1", "i-1")
 	assert_that(orch.container_search().completed_container_count()).is_equal(1)
 
-	## 回到局外再开新一局：容器登记被清空（INV-14）
+	## 走合法流程回局外：补足撤离解锁阈值 -> 撤离成功 -> 结算确认
+	for i in 4:
+		_complete_one(orch, "c-%d" % (i + 2), "i-%d" % (i + 2))
 	orch.start_extraction()
 	orch.complete_extraction_placeholder()
 	orch.settle()
 	orch.confirm_settled()
+	## 再开新一局：容器登记被清空（INV-14）
 	orch.request_start_match()
-	orch.confirm_loadout()
+	assert_that(orch.confirm_loadout()).is_true()
 	assert_that(orch.container_search().container("c-1")).is_null()
 	assert_that(orch.container_search().completed_container_count()).is_equal(0)
+
+
+## [Wiring] 本局地图容器计划：入场后按配置生成（AC-17 图形化容器实体来源；
+## 数量读 GameConfig.match_container_count，INV-16 单一来源；id 唯一）
+func test_match_containers_planned_per_run() -> void:
+	var parts := _wired_orchestrator()
+	var orch: RunFlowOrchestrator = parts["orch"]
+
+	## 入场前无本局容器
+	assert_that(orch.match_containers()).is_empty()
+
+	_enter_run(orch)
+	var containers: Array = orch.match_containers()
+	assert_that(containers.size()).is_equal(6)  # 默认配置 match_container_count
+	var seen := {}
+	for entry in containers:
+		var cid := str(entry.get("container_id", ""))
+		assert_that(cid).is_not_equal("")
+		assert_that(seen.has(cid)).is_false()
+		seen[cid] = true
+		assert_that(str(entry.get("display_name", ""))).is_not_equal("")
 
 
 ## [Wiring] 未注入 ContainerSearchService：回退占位行为，既有流程不受影响

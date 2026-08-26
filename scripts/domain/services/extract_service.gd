@@ -30,6 +30,9 @@ var _state_store: IRunStateStore = null
 var _config_loader: IConfigLoader = null
 ## 是否处于撤离读条推进中（start_extraction 置位，读条/总时间任一归零复位）
 var _extracting := false
+## 双计时不足 1 秒的浮点累积（帧级 delta 不足整秒时先攒后扣，
+## 避免 int(delta) 截断为 0 导致读条/总时间停滞；start_extraction 复位）
+var _tick_remainder := 0.0
 
 
 func _init(state_store: IRunStateStore = null, config_loader: IConfigLoader = null) -> void:
@@ -49,20 +52,28 @@ func start_extraction(state: RunState) -> int:
 	if state == null:
 		return 0
 	_extracting = true
+	_tick_remainder = 0.0
 	state.remaining_extraction_time = _extraction_duration()
 	_write(state)
 	return state.remaining_extraction_time
 
 
 ## 推进撤离读条与总计时（并行递减，INV-08）。
-## 返回本次推进是否使撤离阶段落定：读条或总时间任一归零即返回 true，
-## 由 is_success 判定成功（读条先归零）还是失败（总时间先归零）。
+## 帧级浮点 delta 先累积满整秒再同时扣减双计时（截断会让每帧 ~0.016s
+## 全部丢失，读条停滞）。返回本次推进是否使撤离阶段落定：读条或总时间
+## 任一归零即返回 true，由 is_success 判定成功（读条先归零）还是失败
+## （总时间先归零）。
 func tick(state: RunState, delta_seconds: float) -> bool:
 	if state == null or not _extracting:
 		return false
-	state.remaining_match_time = maxi(state.remaining_match_time - int(delta_seconds), 0)
-	state.remaining_extraction_time = maxi(state.remaining_extraction_time - int(delta_seconds), 0)
-	_write(state)
+	if delta_seconds > 0.0:
+		_tick_remainder += delta_seconds
+		var whole := int(_tick_remainder)
+		_tick_remainder -= whole
+		if whole > 0:
+			state.remaining_match_time = maxi(state.remaining_match_time - whole, 0)
+			state.remaining_extraction_time = maxi(state.remaining_extraction_time - whole, 0)
+			_write(state)
 	if state.remaining_extraction_time <= 0 or state.remaining_match_time <= 0:
 		_extracting = false
 		return true

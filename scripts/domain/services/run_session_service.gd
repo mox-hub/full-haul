@@ -28,6 +28,11 @@ var _state_store: IRunStateStore = null
 var _bus: IEventBus = null
 ## 注入的配置加载器（撤离解锁阈值单一来源 INV-16）
 var _config_loader: IConfigLoader = null
+## 全局计时不足 1 秒的浮点累积（帧级 delta 不足整秒时先攒后扣，
+## 避免 int(delta) 截断为 0 导致计时停滞；create_run 复位，INV-14）
+var _match_time_remainder := 0.0
+## 撤离读条不足 1 秒的浮点累积（同上；create_run 复位）
+var _extraction_time_remainder := 0.0
 
 
 func _init(state_store: IRunStateStore, bus: IEventBus, config_loader: IConfigLoader) -> void:
@@ -42,6 +47,8 @@ func _init(state_store: IRunStateStore, bus: IEventBus, config_loader: IConfigLo
 func create_run(run_id: String, match_duration: int, extraction_duration: int) -> RunState:
 	var state := RunState.new(run_id, match_duration, extraction_duration)
 	state.set_phase(RunState.Phase.RUN_INIT)
+	_match_time_remainder = 0.0
+	_extraction_time_remainder = 0.0
 	_state_store.write(state)
 	if _bus != null:
 		_bus.publish(DomainEvents.Events.RUN_INITIALIZED, DomainEvents.RunInitialized.new(
@@ -68,25 +75,49 @@ func on_container_completed(state: RunState) -> void:
 
 
 ## 推进本局全局计时（总时间）。
-## 返回是否已归零（总时间=0 -> RUN_FAILED，INV-07/08）。
+## 帧级浮点 delta 先累积，满整秒才扣减（截断会让每帧 ~0.016s 全部丢失，
+## 计时停滞）。返回是否已归零（总时间=0 -> RUN_FAILED，INV-07/08）。
 func tick_match_time(delta_seconds: float) -> bool:
 	var state := current_run()
 	if state == null:
 		return false
-	state.remaining_match_time = maxi(state.remaining_match_time - int(delta_seconds), 0)
-	_state_store.write(state)
+	var whole := _consume_whole_seconds(delta_seconds, true)
+	if whole > 0:
+		state.remaining_match_time = maxi(state.remaining_match_time - whole, 0)
+		_state_store.write(state)
 	return state.remaining_match_time <= 0
 
 
 ## 推进当前目标计时（撤离读条）。
-## 返回是否已归零（读条先归零 -> RUN_SUCCEEDED，INV-08）。
+## 帧级浮点 delta 同样先累积满整秒再扣减。返回是否已归零
+## （读条先归零 -> RUN_SUCCEEDED，INV-08）。
 func tick_extraction_time(delta_seconds: float) -> bool:
 	var state := current_run()
 	if state == null:
 		return false
-	state.remaining_extraction_time = maxi(state.remaining_extraction_time - int(delta_seconds), 0)
-	_state_store.write(state)
+	var whole := _consume_whole_seconds(delta_seconds, false)
+	if whole > 0:
+		state.remaining_extraction_time = maxi(state.remaining_extraction_time - whole, 0)
+		_state_store.write(state)
 	return state.remaining_extraction_time <= 0
+
+
+## 把浮点 delta 累积到对应余数槽，返回本次可消费的整秒数（INV-14：随局复位）。
+func _consume_whole_seconds(delta_seconds: float, is_match: bool) -> int:
+	if delta_seconds <= 0.0:
+		return 0
+	if is_match:
+		_match_time_remainder += delta_seconds
+	else:
+		_extraction_time_remainder += delta_seconds
+	var whole := 0
+	if is_match:
+		whole = int(_match_time_remainder)
+		_match_time_remainder -= whole
+	else:
+		whole = int(_extraction_time_remainder)
+		_extraction_time_remainder -= whole
+	return whole
 
 
 ## 撤离是否已解锁（完成数 >= 阈值，INV-07）。

@@ -76,6 +76,7 @@ func _ready() -> void:
 	_run_suite("res://tests/infrastructure/test_repository_provider.gd", "test_repository_provider")
 	_run_suite("res://tests/integration/test_full_chain_loop.gd", "test_full_chain_loop")
 	_run_suite("res://tests/integration/test_main_flow_smoke.gd", "test_main_flow_smoke")
+	_run_suite("res://tests/integration/test_map_containers.gd", "test_map_containers")
 	_run_suite("res://tests/presentation/test_page_router.gd", "test_page_router")
 	_run_suite("res://tests/presentation/test_portrait_layout.gd", "test_portrait_layout")
 

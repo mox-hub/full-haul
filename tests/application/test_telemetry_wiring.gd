@@ -101,7 +101,13 @@ func _wired_orchestrator() -> Dictionary:
 	var run_state_store := _InMemoryStateStore.new()
 	var run_session := RunSessionService.new(run_state_store, bus, _FakeConfigLoader.new())
 	var warehouse := WarehouseService.new(tx, func(instance_id: String) -> int:
-		return 40 if instance_id.begins_with("s-") else 0)
+		## 与 main.gd 组合根一致：经物品定义解析价值（单一来源 INV-16），
+		## 不耦合编排器内部的实例 id 命名
+		var item := item_inventory.get_item(instance_id)
+		if item == null:
+			return 0
+		var def := item_inventory.get_definition(item.definition_id)
+		return def.value if def != null else 0)
 	var settlement := SettlementService.new(warehouse)
 	var telemetry := TelemetryService.new(bus)
 	telemetry.start()
@@ -217,6 +223,33 @@ func test_full_success_chain_with_telemetry() -> void:
 	assert_that(telemetry.count(DomainEvents.Events.RUN_SUCCEEDED)).is_equal(1)
 	assert_that(telemetry.count(DomainEvents.Events.RUN_SETTLED)).is_equal(1)
 	assert_that(telemetry.count(DomainEvents.Events.ITEM_SOLD)).is_equal(1)
+
+
+## [Wiring] 按容器 id 搜索（地图容器实体用例，AC-17）：指定容器完成并携带，
+## 已完成容器重复搜索不重复计数/携带（INV-06 幂等），无参调用自动取下一个。
+func test_search_map_container_by_id_and_completed_guard() -> void:
+	var parts := _wired_orchestrator()
+	var orch: RunFlowOrchestrator = parts["orch"]
+
+	_enter_run_with_backpack(orch)
+	assert_that(orch.match_containers().size()).is_equal(6)
+
+	## 指定地图容器搜索：完成该容器并携带产出
+	var result: Dictionary = orch.search_and_carry_container("map-c-01")
+	assert_that(result.get("completed_count")).is_equal(1)
+	assert_that(result.get("carried_count")).is_equal(1)
+	assert_that(orch.container_search().is_container_completed("map-c-01")).is_true()
+
+	## 已完成容器重复搜索：不重复计数、不重复携带（INV-06）
+	var again: Dictionary = orch.search_and_carry_container("map-c-01")
+	assert_that(again.get("completed_count")).is_equal(1)
+	assert_that(again.get("carried_count")).is_equal(0)
+	assert_that(orch.carried_item_count()).is_equal(1)
+
+	## 无参调用：自动选取计划中下一个未完成容器
+	var auto_next: Dictionary = orch.search_and_carry_container()
+	assert_that(auto_next.get("completed_count")).is_equal(2)
+	assert_that(orch.carried_item_count()).is_equal(2)
 
 
 ## [Wiring] 未注入 ContainerSearch/ItemInventory：search_and_carry 回退纯计数占位

@@ -26,6 +26,10 @@ class_name GameConfig
 ## 撤离解锁所需完成容器数
 @export var required_completed_containers := 5
 
+## 每局地图生成的可搜索容器数（AC-17 核心搜刮图形化；不少于解锁阈值，
+## 供「第 N 个容器」类验收路径可测）
+@export var match_container_count := 6
+
 ## 初始货币
 @export var initial_currency := 100000
 
@@ -91,6 +95,8 @@ func validate() -> Array:
 		errors.append("extraction_duration 必须为正整数")
 	if required_completed_containers <= 0:
 		errors.append("required_completed_containers 必须为正整数")
+	if match_container_count <= 0:
+		errors.append("match_container_count 必须为正整数")
 	for offer_id in backpack_offers:
 		var offer: Dictionary = backpack_offers[offer_id]
 		if offer.get("price", 0) <= 0:

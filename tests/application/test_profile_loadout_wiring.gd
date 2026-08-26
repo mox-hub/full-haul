@@ -160,7 +160,7 @@ func test_confirm_loadout_insufficient_blocks() -> void:
 	orch.start()
 	orch.request_start_match()
 	orch.select_backpack("backpack_6x6")
-	orch.confirm_loadout()
+	assert_that(orch.confirm_loadout()).is_false()
 
 	## 留在 LOADOUT：不推进 RUN_INIT（AC-02 扣款失败留在装载）
 	assert_that(orch.current_phase()).is_equal(RunState.Phase.LOADOUT)
@@ -169,6 +169,75 @@ func test_confirm_loadout_insufficient_blocks() -> void:
 	assert_that(store.profile.currency).is_equal(100)
 	assert_that(store.profile.selected_backpack_offer_id).is_equal("")
 	assert_that(store.transactions.is_empty()).is_true()
+
+
+## [Wiring] 修复回归：0 货币 + 档案已持有高价档位，再入场必须被拦截
+## （此前「已持有跳过购买」路径绕过货币校验，余额不足仍可入场，违反 AC-02）
+func test_confirm_loadout_zero_currency_owned_offer_blocks() -> void:
+	var parts := _wired_orchestrator()
+	var store: InMemoryDataStore = parts["store"]
+	var orch: RunFlowOrchestrator = parts["orch"]
+
+	## 第一局有钱购买 6x6（95000），走完本局回局外后余额清零
+	orch.start()
+	orch.request_start_match()
+	orch.select_backpack("backpack_6x6")
+	assert_that(orch.confirm_loadout()).is_true()
+	orch.timeout_placeholder()
+	orch.settle()
+	orch.confirm_settled()
+	store.profile.currency = 0
+
+	## 0 货币再选同一高价档位入场：被拦截（每局入场强制扣款，AC-02）
+	orch.request_start_match()
+	assert_that(orch.select_backpack("backpack_6x6")).is_true()
+	assert_that(orch.confirm_loadout()).is_false()
+	assert_that(orch.current_phase()).is_equal(RunState.Phase.LOADOUT)
+	assert_that(store.profile.currency).is_equal(0)
+	assert_that(_count(DomainEvents.Events.RUN_INITIALIZED)).is_equal(1)
+
+
+## [Wiring] AC-21「连续购买与开局」：同一档位每局入场各自扣款
+## （事务引用按局唯一，跨局可重复购买；余额不足时不得入场）
+func test_confirm_loadout_repurchases_each_run() -> void:
+	var parts := _wired_orchestrator()
+	var store: InMemoryDataStore = parts["store"]
+	var orch: RunFlowOrchestrator = parts["orch"]
+
+	orch.start()
+	orch.request_start_match()
+	orch.select_backpack("backpack_4x4")
+	assert_that(orch.confirm_loadout()).is_true()
+	assert_that(store.profile.currency).is_equal(99000)
+
+	## 走完本局回局外（时间耗尽 -> 失败结算 -> 确认返回）
+	orch.timeout_placeholder()
+	orch.settle()
+	orch.confirm_settled()
+
+	## 第二局再入场：同一档位再次扣款（每局购买，AC-02/AC-21）
+	orch.request_start_match()
+	orch.select_backpack("backpack_4x4")
+	assert_that(orch.confirm_loadout()).is_true()
+	assert_that(store.profile.currency).is_equal(98000)
+	assert_that(store.transactions.size()).is_equal(2)
+
+
+## [Wiring] AC-02「重复确认」：入场成功后再次确认被阶段守卫拦截，不重复扣款
+func test_confirm_loadout_double_confirm_guarded() -> void:
+	var parts := _wired_orchestrator()
+	var store: InMemoryDataStore = parts["store"]
+	var orch: RunFlowOrchestrator = parts["orch"]
+
+	orch.start()
+	orch.request_start_match()
+	orch.select_backpack("backpack_4x4")
+	assert_that(orch.confirm_loadout()).is_true()
+	## 重复确认（双击等）：不再扣款、不重复初始化对局
+	assert_that(orch.confirm_loadout()).is_false()
+	assert_that(store.profile.currency).is_equal(99000)
+	assert_that(store.transactions.size()).is_equal(1)
+	assert_that(_count(DomainEvents.Events.RUN_INITIALIZED)).is_equal(1)
 
 
 ## [Wiring] 选择校验：不存在的档位选择失败

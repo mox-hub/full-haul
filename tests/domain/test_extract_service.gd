@@ -179,6 +179,49 @@ func test_tick_simultaneous_zero_resolves_failure() -> void:
 	assert_that(svc.is_success(state)).is_false()
 
 
+## [ExtractService] 帧级浮点 delta 累积：60fps 每帧 ~0.0167s 不被截断丢失
+## （修复回归：int(delta) 截断为 0 导致读条/总时间停滞），双计时满整秒同步扣减。
+func test_tick_fractional_accumulates() -> void:
+	var parts := _service()
+	var svc: ExtractService = parts["svc"]
+	var state := _run(180, 15)
+	svc.start_extraction(state)
+
+	## 60 帧 × 1/60s = 1 秒：双计时各减 1（此前 int(1/60)=0 完全丢失）
+	for i in 60:
+		assert_that(svc.tick(state, 1.0 / 60.0)).is_false()
+	assert_that(state.remaining_match_time).is_equal(179)
+	assert_that(state.remaining_extraction_time).is_equal(14)
+
+	## 再推 14 秒（840 帧）读条归零 -> 成功
+	for i in 840:
+		var resolved := svc.tick(state, 1.0 / 60.0)
+		if resolved:
+			break
+	assert_that(state.remaining_extraction_time).is_equal(0)
+	assert_that(state.remaining_match_time).is_greater(0)
+	assert_that(svc.is_success(state)).is_true()
+
+
+## [ExtractService] 帧级余量随每次撤离开始复位（不携带上局/上次读条余量）。
+func test_tick_remainder_resets_per_extraction() -> void:
+	var parts := _service()
+	var svc: ExtractService = parts["svc"]
+	var state := _run(180, 15)
+	svc.start_extraction(state)
+
+	## 攒下半秒余量不扣减
+	svc.tick(state, 0.5)
+	assert_that(state.remaining_extraction_time).is_equal(15)
+
+	## 重新开始撤离：余量清零，半秒不足整秒不扣
+	svc.start_extraction(state)
+	svc.tick(state, 0.5)
+	assert_that(state.remaining_extraction_time).is_equal(15)
+	svc.tick(state, 0.5)
+	assert_that(state.remaining_extraction_time).is_equal(14)
+
+
 ## [ExtractService] 未开始撤离时 tick 不推进（start_extraction 前置）
 func test_tick_before_start_is_noop() -> void:
 	var parts := _service()
