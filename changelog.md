@@ -10,6 +10,17 @@
 
 ## [未发布]
 
+### 修复
+
+- 主线验证问题 1（AC-02/AC-21 入场货币校验）：移除「档案已持有档位跳过购买」路径——0 货币仍可携高价背包免检入场；入场购买改为每局一次（事务引用按 runId 唯一，跨局各自扣款、同局重复确认被 LOADOUT 阶段守卫拦截），余额不足留在装载页并提示所需价格
+- 主线验证问题 2（AC-17 核心搜刮图形化）：对局地图新增按本局计划生成的可点击容器实体（数量读 GameConfig.match_container_count，容器类型读配置数据；点击即搜索该容器并携带产出，已完成容器禁用标记不重复搜索）；修复入场后局内按钮停留在禁用态的问题（RUN_INIT -> IN_RUN_LOCKED 无事件，改为表现层每帧轮询阶段变化刷新）；搜索产出实例 id 加 runId 前缀（修复第二局同容器携带被实例幂等静默拒绝）
+- 主线验证问题 3（AC-10/AC-11 双计时）：RunSessionService/ExtractService 的 tick 用 int(delta) 截断帧级浮点增量（每帧 ~0.016s 全部丢失）导致总时间与撤离读条停滞——改为浮点累积满整秒再扣减，余量随局/每次撤离开始复位（INV-14）；HUD 撤离读条总量改读配置（不再硬编码 15 秒）
+- 伴随测试修正：test_container_search_wiring 多局复位用例改走合法撤离流程（旧用例依赖无阶段守卫的确认入场）；test_telemetry_wiring 出售价值解析改经物品定义（解耦编排器内部实例 id 命名）
+
+### 测试
+
+- 新增回归用例：0 货币已持有档位入场拦截、每局重复扣款、双确认防护（test_profile_loadout_wiring）；帧级浮点计时累积与余量复位（test_run_session_service/test_extract_service）；本局容器计划与按容器搜索幂等（test_container_search_wiring/test_telemetry_wiring）；地图容器实体 GUI 可点击（tests/integration/test_map_containers.gd，全局 EventBus 进程级单例下一局一套件）
+
 ### 变更
 
 - WORD-40 首页 HUD 重构：顶栏左侧改为基础属性区——货币（金币图标+数值）与生命/氧气百分比条（像素图标+条内百分比，当前为占位常量，生命/属性域为未来方向）；仓库/背包改为右上角圆形像素按钮触发（仓库带数量徽标，背包点按 toast 档位），功能链不变（feat/lobby-home-ui）

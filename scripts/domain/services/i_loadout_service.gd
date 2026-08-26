@@ -21,8 +21,10 @@ func get_backpack_offer(offer_id: String) -> Dictionary:
 
 
 ## 购买/选择指定背包并完成货币扣款（INV-12）。
+## ref_id 为事务防重引用（默认 offer_id）；入场购买按规范 AC-02 每局扣款，
+## 传 run_id 作 ref_id 保证同一档位跨局可重复购买且局内防重。
 ## 返回是否成功（余额不足/不存在则失败，不产生事务）。
-func purchase_backpack(profile: PlayerProfile, offer_id: String) -> bool:
+func purchase_backpack(profile: PlayerProfile, offer_id: String, ref_id: String = "") -> bool:
 	return false
 
 
@@ -32,6 +34,7 @@ func can_afford(profile: PlayerProfile, offer_id: String) -> bool:
 
 
 ## 确认装载并绑定本局背包，返回是否成功。
+## ref_id 为购买事务引用（默认 offer_id，须与 purchase_backpack 一致）。
 ## 成功后由顶层状态机进入 RUN_INIT（AC-03）。
-func confirm_loadout(run: RunState, offer_id: String) -> bool:
+func confirm_loadout(run: RunState, offer_id: String, ref_id: String = "") -> bool:
 	return false

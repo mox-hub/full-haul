@@ -146,6 +146,53 @@ func test_tick_extraction_time() -> void:
 	assert_that(svc.current_run().remaining_extraction_time).is_equal(0)
 
 
+## [RunSessionService] 帧级浮点 delta 累积：60fps 每帧 ~0.0167s 不被截断丢失
+## （修复回归：int(delta) 截断为 0 导致计时停滞），满整秒才扣减。
+func test_tick_match_time_fractional_accumulates() -> void:
+	var parts := _service()
+	var svc: RunSessionService = parts["svc"]
+	svc.create_run("run-tf", 10, 15)
+
+	## 60 帧 × 1/60s = 1 秒（此前 int(1/60)=0 完全丢失）
+	for i in 60:
+		assert_that(svc.tick_match_time(1.0 / 60.0)).is_false()
+	assert_that(svc.current_run().remaining_match_time).is_equal(9)
+
+	## 300 帧（5 秒）连续推进
+	for i in 300:
+		svc.tick_match_time(1.0 / 60.0)
+	assert_that(svc.current_run().remaining_match_time).is_equal(4)
+
+
+## [RunSessionService] 帧级浮点 delta 同样作用于撤离读条（满整秒扣减）。
+func test_tick_extraction_time_fractional_accumulates() -> void:
+	var parts := _service()
+	var svc: RunSessionService = parts["svc"]
+	svc.create_run("run-te", 180, 5)
+
+	for i in 120:
+		assert_that(svc.tick_extraction_time(1.0 / 60.0)).is_false()
+	assert_that(svc.current_run().remaining_extraction_time).is_equal(3)
+
+
+## [RunSessionService] 余数随局复位（INV-14）：新一局不携带上局的不足整秒余量。
+func test_tick_remainder_resets_per_run() -> void:
+	var parts := _service()
+	var svc: RunSessionService = parts["svc"]
+	svc.create_run("run-r1", 10, 15)
+
+	## 攒下半秒余量但不扣减
+	svc.tick_match_time(0.5)
+	assert_that(svc.current_run().remaining_match_time).is_equal(10)
+
+	## 新一局：余量清零，首帧不足整秒不扣减
+	svc.create_run("run-r2", 10, 15)
+	svc.tick_match_time(0.5)
+	assert_that(svc.current_run().remaining_match_time).is_equal(10)
+	svc.tick_match_time(0.5)
+	assert_that(svc.current_run().remaining_match_time).is_equal(9)
+
+
 ## [RunSessionService] 双计时独立推进互不干扰（INV-08 并行计时的状态承载）
 func test_dual_timers_independent() -> void:
 	var parts := _service()

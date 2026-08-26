@@ -89,6 +89,7 @@ func _on_offer_pressed(offer_id: String) -> void:
 
 
 ## 按钮回调：确认入场（购买扣款 + 初始化对局）。
+## 入场被拦截（余额不足等，AC-02 余额不足不得入场）时留在装载页并提示原因。
 func _on_confirm_button_pressed() -> void:
 	if _orchestrator == null:
 		return
@@ -99,7 +100,23 @@ func _on_confirm_button_pressed() -> void:
 			var offers := _load_offers()
 			if not offers.is_empty():
 				_orchestrator.select_backpack(str(offers.keys()[0]))
-	_orchestrator.confirm_loadout()
+	var confirmed := _orchestrator.confirm_loadout()
+	if not confirmed:
+		_show_purchase_blocked_hint()
+
+
+## 入场被拦截提示（余额不足为主因，AC-02：扣款失败留在 LOADOUT 等待重选）。
+func _show_purchase_blocked_hint() -> void:
+	if _orchestrator == null or currency_label == null:
+		return
+	var offer_id := _selected_offer \
+		if _selected_offer != "" else _orchestrator.selected_backpack_offer()
+	var offer: Dictionary = _load_offers().get(offer_id, {})
+	var price := int(offer.get("price", 0))
+	var profile: PlayerProfile = _orchestrator.current_profile()
+	var currency := profile.currency if profile != null else 0
+	currency_label.text = "当前货币：%d —— 余额不足，购买该背包需 %d，无法入场" \
+		% [currency, price]
 
 
 func _on_cancel_button_pressed() -> void:

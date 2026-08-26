@@ -58,10 +58,14 @@ func set_carried(count: int) -> void:
 
 
 ## 展示撤离读条剩余时间（秒；EXTRACTING 期间由计时循环调用，切片 7/9）。
+## 读条按配置的撤离时长归一为百分比（INV-16 单一来源，不硬编码 15）。
 func set_extract_progress(remaining_seconds: int) -> void:
 	extract_bar.visible = true
 	extract_bar_label.visible = true
-	extract_bar.value = clampf(remaining_seconds * 100.0 / 15.0, 0.0, 100.0)
+	var total := 15.0
+	if _orchestrator != null:
+		total = maxf(float(_orchestrator.extraction_duration()), 1.0)
+	extract_bar.value = clampf(remaining_seconds * 100.0 / total, 0.0, 100.0)
 	extract_bar_label.text = "撤离读条：剩余 %d 秒" % maxi(remaining_seconds, 0)
 
 

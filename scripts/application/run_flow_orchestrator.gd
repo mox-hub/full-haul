@@ -69,6 +69,11 @@ var _last_run_outcome := ""
 ## 使完成数统计与容器搜索域一致）
 var _placeholder_seq := 0
 
+## 本局地图容器计划（AC-17 核心搜刮图形化：对局场景内的可操作容器实体来源）。
+## 每局入场时按配置生成 [{container_id, type_id, display_name, grid_width,
+## grid_height}]；容器数量读取 GameConfig（INV-16 单一来源）。
+var _match_containers: Array = []
+
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
 		repositories: RepositorySet = null, loadout_service: ILoadoutService = null,
@@ -125,37 +130,48 @@ func select_backpack(offer_id: String) -> bool:
 
 
 ## 用例：确认入场装载（LOADOUT -> RUN_INIT -> IN_RUN_LOCKED）。
+## 返回是否入场成功（false 表示被拦截，留在 LOADOUT）。
 ## 切片 3：注入 LoadoutService 时，确认入场即购买/扣款所选背包（走 Transaction
 ## 域原子性，INV-12）并落库局外账户；扣款失败（余额不足等）则留在 LOADOUT。
-## 切片 9：若档案已持有所选档位（selected_backpack_offer_id == offerId），跳过
-## 重复购买（事务防重 INV-12 已记录过 purchase，直接复用，保证多局可再入场）。
+## 修复（AC-02/AC-21）：入场购买为「每局一次」——事务引用使用本局 runId，
+## 同一档位跨局入场各自扣款（连续购买与开局），余额不足一律不得入场；
+## 同局重复确认被 LOADOUT 阶段守卫与事务防重双重拦截。此前「档案已持有
+## 档位则跳过购买」的路径会绕过货币校验，已移除。
 ## 未注入时回退占位行为（直接初始化对局）。
 ## WORD-31：对局初始化后写入运行时快照（IRunSnapshotRepository）。
-func confirm_loadout() -> void:
+func confirm_loadout() -> bool:
+	## 阶段守卫：仅在 LOADOUT 阶段可确认（重复确认/局外误调不重复扣款，AC-02）
+	if _sm.current_phase() != RunState.Phase.LOADOUT:
+		return false
+	var run_id := "run-%04d" % (_run_seq + 1)
 	if _loadout_service != null:
 		var profile := _load_profile()
 		if profile == null:
-			return
-		if profile.selected_backpack_offer_id != _selected_offer_id:
-			if not _loadout_service.purchase_backpack(profile, _selected_offer_id):
-				## 购买/扣款失败：留在 LOADOUT，等待重新选择（AC-02）
-				return
-			if _repos != null and _repos.profile != null:
-				_repos.profile.save(profile)
+			return false
+		## 每局入场强制购买扣款（ref=runId：跨局可购、同局防重，AC-02）
+		if not _loadout_service.purchase_backpack(profile, _selected_offer_id, run_id):
+			## 购买/扣款失败（余额不足等）：留在 LOADOUT，等待重新选择（AC-02）
+			return false
+		if _repos != null and _repos.profile != null:
+			_repos.profile.save(profile)
 	_run_seq += 1
-	_sm.on_loadout_confirmed("run-%04d" % _run_seq)
 	## 切片 6：新一局开始清空上局容器登记（INV-14 多局隔离）
 	if _container_search_service != null:
 		_container_search_service.reset()
+	## 生成本局地图容器计划（须先于 RUN_INITIALIZED 事件：表现层在事件回调中
+	## 依此重建地图容器实体，AC-17）
+	_build_match_containers()
+	_sm.on_loadout_confirmed(run_id)
 	if _loadout_service != null:
 		## 确认绑定本局背包（购买已成功；绑定校验应通过）
-		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id)
+		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id, run_id)
 	## 切片 5：绑定本局背包 + 安全箱格子（尺寸单一来源 INV-16）；
 	## 注入 ItemInventoryService 时初始化两格，供局内放置物品使用
 	_setup_inventory_grids()
 	## V0.1 对局初始化为同步完成（无异步加载），立即进入局内锁定态
 	_sm.on_run_init_ok()
 	_persist_run_snapshot()
+	return true
 
 
 ## 用例：取消入场装载（LOADOUT -> OUT_OF_RUN）。
@@ -259,11 +275,14 @@ func carry_revealed_item(instance_id: String, definition_id: String,
 
 
 ## 用例（占位→真携带）：完成一个必搜容器并把产出物品携带入背包（IN_RUN_* 内有效）。
-## 切片 9 表现层接线：占位搜索不再只是「完成计数」，而是登记容器 -> 打开 ->
-## 逐件揭晓 -> 把揭晓物品携带入背包格子 -> 完成容器计数（INV-06 幂等）。
+## container_id 指定要搜索的地图容器（来自本局容器计划 match_containers）；
+## 留空则自动选取计划中下一个未完成容器；无可用计划时回退占位容器。
+## 已完成的容器不重复搜索、不重复携带物品（INV-06 幂等，返回当前计数）。
+## 切片 9 表现层接线：搜索不再只是「完成计数」，而是登记容器 -> 打开 ->
+## 逐件揭晓 -> 把揭晓物品携带入背包格子 -> 完成容器计数。
 ## 未注入 ContainerSearchService / ItemInventoryService 时回退到纯计数占位
 ## （既有流程不受影响）。
-func search_and_carry_container() -> Dictionary:
+func search_and_carry_container(container_id: String = "") -> Dictionary:
 	var state: RunState = _store.read()
 	if state == null:
 		return {}
@@ -272,33 +291,106 @@ func search_and_carry_container() -> Dictionary:
 	if _container_search_service == null or _item_inventory_service == null:
 		var count := complete_container_placeholder()
 		return {"completed_count": count, "carried_count": 0}
-	_placeholder_seq += 1
-	var container_id := "search-%03d" % _placeholder_seq
-	var instance_id := "s-%03d" % _placeholder_seq
-	_container_search_service.open_container(container_id, 1, [instance_id])
-	var def := _first_item_definition()
+	var target := container_id
+	if target == "":
+		target = _next_uncompleted_container()
+		if target == "":
+			_placeholder_seq += 1
+			target = "search-%03d" % _placeholder_seq
+	## 已完成容器：不重复搜索/携带（幂等 INV-06）
+	if _container_search_service.is_container_completed(target):
+		return {"completed_count": _store.read().completed_container_count,
+			"carried_count": 0}
+	## 实例 id 按局唯一（ItemInventoryService 跨局复用且按 id 幂等注册，INV-01；
+	## 不带 runId 前缀时第二局同容器携带会被重复 id 静默拒绝）
+	var instance_id := "%s-%s-item-1" % [state.run_id, target]
+	_container_search_service.register_container(target, _container_type_id(target))
+	_container_search_service.open_container(target, 1, [instance_id])
+	var def := _nth_item_definition(_container_search_service.completed_container_count())
 	var definition_id: String = str(def.get("definition_id", "item_battery"))
 	var rarity: String = str(def.get("rarity", "common"))
 	var value: int = int(def.get("value", 40))
 	var size := Vector2i(int(def.get("width", 1)), int(def.get("height", 1)))
-	_container_search_service.start_reveal(container_id, instance_id, rarity)
+	_container_search_service.start_reveal(target, instance_id, rarity)
 	var carried := 0
 	if carry_revealed_item(instance_id, definition_id, size):
 		carried = 1
-	_container_search_service.complete_reveal(container_id, instance_id,
+	_container_search_service.complete_reveal(target, instance_id,
 		definition_id, rarity, value, size)
 	_sm.on_container_completed()
 	_persist_run_snapshot()
 	return {"completed_count": _store.read().completed_container_count, "carried_count": carried}
 
 
-## 挑选一件物品定义用于占位搜索产出（配置数据单一来源 INV-16）。
-## 取配置数据首条道具/藏品定义；配置未加载时回退内置 item_battery。
-func _first_item_definition() -> Dictionary:
+## 本局地图容器计划（AC-17：表现层地图容器实体的数据来源；只读副本）。
+func match_containers() -> Array:
+	return _match_containers.duplicate()
+
+
+## 生成本局地图容器计划（每局入场时调用，INV-14 多局隔离）。
+## 容器类型取配置数据 container_types（kind=="container"，排除撤离点等），
+## 依次轮转生成 match_container_count 个；配置缺失时回退等量通用容器。
+func _build_match_containers() -> void:
+	_match_containers = []
+	var types: Array = []
+	var container_types: Dictionary = _loaded_config_data.get("container_types", {})
+	for type_id in container_types:
+		var entry: Dictionary = container_types[type_id]
+		if str(entry.get("kind", "container")) != "container":
+			continue
+		types.append(entry)
+	var count := _match_container_count()
+	for i in count:
+		if types.is_empty():
+			_match_containers.append({
+				"container_id": "map-c-%02d" % (i + 1), "type_id": "",
+				"display_name": "容器", "grid_width": 3, "grid_height": 3})
+			continue
+		var entry: Dictionary = types[i % types.size()]
+		_match_containers.append({
+			"container_id": "map-c-%02d" % (i + 1),
+			"type_id": str(entry.get("type_id", "")),
+			"display_name": str(entry.get("display_name", "容器")),
+			"grid_width": int(entry.get("grid_width", 3)),
+			"grid_height": int(entry.get("grid_height", 3))})
+
+
+## 本局地图容器数量（配置单一来源 INV-16；未加载/非法时回退 6）。
+func _match_container_count() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null and cfg.match_container_count > 0:
+			return cfg.match_container_count
+	return 6
+
+
+## 计划中下一个未完成容器 id；全部完成/无计划返回 ""。
+func _next_uncompleted_container() -> String:
+	if _container_search_service == null:
+		return ""
+	for entry in _match_containers:
+		var cid := str(entry.get("container_id", ""))
+		if cid != "" and not _container_search_service.is_container_completed(cid):
+			return cid
+	return ""
+
+
+## 查容器计划中的 type_id；不在计划中返回 ""。
+func _container_type_id(container_id: String) -> String:
+	for entry in _match_containers:
+		if str(entry.get("container_id", "")) == container_id:
+			return str(entry.get("type_id", ""))
+	return ""
+
+
+## 挑选一件物品定义用于搜索产出（配置数据单一来源 INV-16）。
+## 按已完成容器数轮转配置数据中的定义（确定性，不引入随机）；配置未加载时
+## 回退内置 item_battery。
+func _nth_item_definition(index: int) -> Dictionary:
 	var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
 	if not defs.is_empty():
-		var first_key: String = str(defs.keys()[0])
-		return defs[first_key]
+		var keys: Array = defs.keys()
+		return defs[keys[index % keys.size()]]
 	return {"definition_id": "item_battery", "rarity": "common",
 		"value": 40, "width": 1, "height": 1}
 
@@ -491,6 +583,15 @@ func remaining_match_time() -> int:
 func remaining_extraction_time() -> int:
 	var state: RunState = _store.read()
 	return state.remaining_extraction_time if state != null else 0
+
+
+## 撤离读条时长（配置单一来源 INV-16；供 HUD 读条按总量归一展示）。
+func extraction_duration() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.extraction_duration
+	return 15
 
 
 ## 当前已选背包档位 offerId（表现层展示选中态用）。
