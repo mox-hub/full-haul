@@ -62,8 +62,22 @@ func _boot_framework() -> void:
 	## 撤离锁定/解锁（完成数阈值）、15 秒撤离读条与总计时并行推进、
 	## 成功/失败判定；撤离时长与解锁阈值读取配置单一来源（INV-16）。
 	var extract_service := ExtractService.new(run_state_store, ConfigLoaderAdapter.new())
+	## 切片 8：注入仓库服务（Warehouse 域，AC-14/INV-12）与结算服务
+	## （Settlement 域，AC-12/13，INV-09/10/11）。
+	## 仓库出售走 Transaction 域原子性与防重（INV-12）；物品价值经
+	## item_inventory 数据驱动定义解析（单一来源 INV-16）。
+	var warehouse_service := WarehouseService.new(
+		TransactionService.new(repos.run_result),
+		func(instance_id: String) -> int:
+			var item := item_inventory.get_item(instance_id) if item_inventory != null else null
+			if item == null:
+				return 0
+			var def := item_inventory.get_definition(item.definition_id) if item_inventory != null else null
+			return def.value if def != null else 0)
+	var settlement_service := SettlementService.new(warehouse_service)
 	_orchestrator = RunFlowOrchestrator.new(bus, run_state_store, ConfigLoaderAdapter.new(), repos,
-		null, run_session, item_inventory, container_search, extract_service)
+		null, run_session, item_inventory, container_search, extract_service,
+		settlement_service, warehouse_service)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
 	lobby_page.setup(_orchestrator)

@@ -43,6 +43,10 @@ var _item_inventory_service: IItemInventoryService = null
 var _container_search_service: IContainerSearchService = null
 ## 注入的撤离服务（切片 7 Extract 域；null 表示未接线，回退占位行为）
 var _extract_service: IExtractService = null
+## 注入的结算服务（切片 8 Settlement 域；null 表示未接线，回退占位行为）
+var _settlement_service: ISettlementService = null
+## 注入的仓库服务（切片 8 Warehouse 域；null 表示未接线，回退占位行为）
+var _warehouse_service: IWarehouseService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
@@ -69,7 +73,9 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 		run_session_service: IRunSessionService = null,
 		item_inventory_service: IItemInventoryService = null,
 		container_search_service: IContainerSearchService = null,
-		extract_service: IExtractService = null) -> void:
+		extract_service: IExtractService = null,
+		settlement_service: ISettlementService = null,
+		warehouse_service: IWarehouseService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
@@ -79,8 +85,11 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 	_item_inventory_service = item_inventory_service
 	_container_search_service = container_search_service
 	_extract_service = extract_service
+	_settlement_service = settlement_service
+	_warehouse_service = warehouse_service
 	_sm = TopLevelStateMachine.new(bus, state_store, config_loader,
-		loadout_service, run_session_service, container_search_service, extract_service)
+		loadout_service, run_session_service, container_search_service, extract_service,
+		settlement_service)
 
 
 ## 启动：BOOT -> OUT_OF_RUN（主场景引导完成后调用一次）。
@@ -258,11 +267,40 @@ func timeout_placeholder() -> void:
 ## ---- 结算 ----
 
 ## 用例：完成结算（RUN_SUCCEEDED/RUN_FAILED -> SETTLED，幂等 INV-09）。
+## 切片 8：注入 SettlementService 时，经结算域完成物品入库（成功携带物品
+## INV-10 / 失败安全箱物品 INV-11）并落库局外账户；结算幂等（INV-09，已结算
+## 则跳过状态机转移，不重复广播 RUN_SETTLED）。未注入时回退占位行为。
 ## WORD-31：结算后写入存档（IRunResultRepository 结算记录 + IProfileRepository
 ## 局外账户），数据变更仍由既有领域事件（RUN_SETTLED 等）经总线广播。
 func settle() -> void:
-	_sm.on_settled()
+	var state: RunState = _store.read()
+	var profile := _load_profile()
+	var should_settle := true
+	if _settlement_service != null and state != null and profile != null:
+		var is_success := _run_is_success(state)
+		should_settle = _settlement_service.settle_success(state, profile) \
+			if is_success else _settlement_service.settle_failure(state, profile)
+		if should_settle and _repos != null and _repos.profile != null:
+			_repos.profile.save(profile)
+	if should_settle:
+		_sm.on_settled()
 	_persist_settlement()
+
+
+## 用例：出售一件仓库物品（切片 8 Warehouse 域，INV-12 原子事务）。
+## 经 WarehouseService.sell_item 完成货币加款（走 Transaction 域防重）并从
+## 仓库移除；成功后落库局外账户。返回成交价格（失败返回 0）。
+## 未注入 WarehouseService 时返回 0（回退占位，既有流程不受影响）。
+func sell_warehouse_item(instance_id: String) -> int:
+	if _warehouse_service == null:
+		return 0
+	var profile := _load_profile()
+	if profile == null:
+		return 0
+	var price := _warehouse_service.sell_item(profile, instance_id)
+	if price > 0 and _repos != null and _repos.profile != null:
+		_repos.profile.save(profile)
+	return price
 
 
 ## 用例：确认结算并返回局外（SETTLED -> OUT_OF_RUN）。
@@ -320,6 +358,18 @@ func container_search() -> IContainerSearchService:
 ## 未接线时返回 null。
 func extract_service() -> IExtractService:
 	return _extract_service
+
+
+## 当前结算服务（切片 8；供表现层/后续切片经接口访问）。
+## 未接线时返回 null。
+func settlement_service() -> ISettlementService:
+	return _settlement_service
+
+
+## 当前仓库服务（切片 8；供表现层/后续切片经接口访问）。
+## 未接线时返回 null。
+func warehouse_service() -> IWarehouseService:
+	return _warehouse_service
 
 
 ## ---- WORD-31 数据层接线辅助（应用层编排侧，领域/表现层不感知）----
@@ -436,3 +486,15 @@ func _in_run_phase() -> bool:
 		return false
 	return state.phase == RunState.Phase.IN_RUN_LOCKED \
 		or state.phase == RunState.Phase.IN_RUN_EXTRACTABLE
+
+
+## 结算时判定本局成败（切片 8）：以终局阶段为准；阶段信息缺失时回退
+## _last_run_outcome（与 _persist_settlement 的存档判定保持一致）。
+func _run_is_success(state: RunState) -> bool:
+	if state == null:
+		return _last_run_outcome == "success"
+	if state.phase == RunState.Phase.RUN_SUCCEEDED:
+		return true
+	if state.phase == RunState.Phase.RUN_FAILED:
+		return false
+	return _last_run_outcome == "success"
