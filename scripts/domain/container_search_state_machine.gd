@@ -13,18 +13,22 @@
 ## 关键约束：
 ##   - INV-05：UNOPENED 容器不得提前暴露物品身份/品质/价值；MASKED 只显示
 ##     物品总数与每件物品当前方向完整占格（同尺寸视觉一致，禁止剪影/造型
-##     蒙版），不得泄露身份/类别/品质/价值。
+##     蒙版），不得泄露身份/类别/品质/价值；未开始揭晓（MASKED）不得完成揭晓。
 ##   - INV-06：COMPLETED 首次进入时完成容器计数 +1；同一容器不重复计数（幂等）。
 ##
 ## 设计要点：
-##   1. 纯逻辑（extends RefCounted），零 Godot 节点依赖，可独立单元测试。
-##   2. 一容器一实例；由 Loot/Container 域持有并推进。
-##   3. 依赖注入 IEventBus（可选，用于发布 CONTAINER_OPENED/ITEM_REVEAL_STARTED/
-##      ITEM_REVEALED/CONTAINER_COMPLETED 领域事件）。
+##   1. 纯逻辑（extends RefCounted），零 Godot 节点依赖，可独立单元测试
+##      （架构原则 2）。
+##   2. 一容器一实例；由 ContainerSearchService 登记并推进（架构 §1.1
+##      Loot/Container 域）。
+##   3. 依赖注入 IEventBus（可选）：发布 CONTAINER_OPENED/ITEM_REVEAL_STARTED/
+##      ITEM_REVEALED/CONTAINER_COMPLETED 领域事件（架构 §2.3）。
+##   4. 逐件揭晓按实例幂等：同一 instance_id 只揭晓一次，重复 complete_reveal
+##      不重复计入已揭晓数（物品揭晓逻辑）；揭晓完成信号供局级计数使用。
 ##
-## 说明：本文件为 V0.1 基础框架的容器搜索子状态机「骨架」，提供状态流转与
-## 幂等计数；揭晓顺序（TBD-03）、搜索中断/恢复（TBD-02）为规范未确定事项，
-## 此处不填默认值，实施依赖处必须停工提问（规范 10.1）。
+## 说明：容器内揭晓顺序（TBD-03）、搜索中断/恢复（TBD-02）为规范未确定
+## 事项，此处不填默认值；揭晓顺序由调用方逐件 start_reveal 驱动，实施依赖处
+## 必须停工提问（规范 10.1）。
 
 extends RefCounted
 class_name ContainerSearchStateMachine
@@ -46,6 +50,8 @@ var _config_loader: IConfigLoader = null
 
 ## 容器唯一标识
 var container_id: String = ""
+## 容器类型 id（可选，架构 §5 ContainerState type_id；登记时设置）
+var type_id: String = ""
 ## 当前阶段
 var phase: Phase = Phase.UNOPENED
 ## 本容器内物品总数（首次打开时确定，INV-05 遮罩计数）
@@ -54,6 +60,10 @@ var item_count := 0
 var revealed_count := 0
 ## 是否已完成过计数（INV-06 幂等保护：同一容器只 +1 一次）
 var counted := false
+## 本容器内物品实例 id 列表（可选；打开时登记，遮罩计数与最终尺寸一致）
+var item_instance_ids: Array = []
+## 已揭晓的物品实例 id -> true（物品揭晓幂等：同一实例只揭晓一次）
+var _revealed_instances: Dictionary = {}
 
 
 func _init(p_container_id := "", bus: IEventBus = null, config_loader: IConfigLoader = null) -> void:
@@ -63,24 +73,27 @@ func _init(p_container_id := "", bus: IEventBus = null, config_loader: IConfigLo
 
 
 ## 首次打开容器 -> MASKED（INV-05）。
-## item_count 为容器内物品总数（遮罩态显示）。
-func open(p_item_count: int) -> void:
+## item_count 为容器内物品总数（遮罩态显示）；p_instance_ids 为容器内物品
+## 实例 id 列表（可选）：提供时以实例数为准，保证遮罩计数与最终揭晓一致。
+## 已打开过返回 false（重复打开忽略）。
+func open(p_item_count: int, p_instance_ids: Array = []) -> bool:
 	if phase != Phase.UNOPENED:
-		## 已打开过，忽略重复打开
-		return
-	item_count = p_item_count
+		return false
+	item_instance_ids = p_instance_ids.duplicate()
+	item_count = item_instance_ids.size() if not item_instance_ids.is_empty() else p_item_count
 	phase = Phase.MASKED
 	if _bus != null:
 		var shapes := _build_masked_shapes(item_count)
 		_bus.publish(DomainEvents.Events.CONTAINER_OPENED,
 			DomainEvents.ContainerOpened.new(container_id, item_count, shapes))
+	return true
 
 
 ## 开始对一件物品揭晓计时 -> REVEALING。
 ## rarity 为该物品品质（决定揭晓耗时，来自配置）；instance_id 标识该物品实例。
+## UNOPENED / COMPLETED 不可开始揭晓；已全部揭晓不可再开始（INV-05）。
 func start_reveal(instance_id: String, rarity: String) -> bool:
 	if phase not in [Phase.MASKED, Phase.REVEALING, Phase.PARTIALLY_REVEALED]:
-		## UNOPENED / COMPLETED 不可开始揭晓
 		return false
 	if revealed_count >= item_count:
 		## 已全部揭晓，不应再开始新揭晓
@@ -94,29 +107,39 @@ func start_reveal(instance_id: String, rarity: String) -> bool:
 
 
 ## 一件物品揭晓完成。
-## 揭晓完成后若仍有遮罩物品 -> PARTIALLY_REVEALED；若全部完成 -> COMPLETED。
+## 仅可在 REVEALING / PARTIALLY_REVEALED 阶段完成揭晓（须先 start_reveal，
+## INV-05）；同一实例只揭晓一次，重复揭晓返回 false（物品揭晓幂等）。
+## 返回是否「本次揭晓使容器首次完成并计数」（INV-06 局级计数触发信号）。
 func complete_reveal(instance_id: String, definition_id: String, rarity: String,
-		value: int, size: Vector2i) -> void:
+		value: int, size: Vector2i) -> bool:
 	if phase == Phase.COMPLETED:
-		return
+		return false
+	if phase not in [Phase.REVEALING, Phase.PARTIALLY_REVEALED]:
+		return false
+	if _revealed_instances.has(instance_id):
+		return false
+	_revealed_instances[instance_id] = true
 	if _bus != null:
 		_bus.publish(DomainEvents.Events.ITEM_REVEALED,
 			DomainEvents.ItemRevealed.new(container_id, instance_id, definition_id, rarity, value, size))
 	revealed_count = min(revealed_count + 1, item_count)
 	if revealed_count >= item_count:
-		_complete()
-	else:
-		phase = Phase.PARTIALLY_REVEALED
+		return _complete()
+	phase = Phase.PARTIALLY_REVEALED
+	return false
 
 
 ## 进入 COMPLETED；首次进入时完成容器计数 +1（幂等 INV-06）。
-func _complete() -> void:
+## 返回是否本次真正执行了「首次完成计数」（false 表示已计数）。
+func _complete() -> bool:
 	phase = Phase.COMPLETED
 	if not counted:
 		counted = true
 		if _bus != null:
 			_bus.publish(DomainEvents.Events.CONTAINER_COMPLETED,
 				DomainEvents.ContainerCompleted.new(container_id))
+		return true
+	return false
 
 
 ## 是否已完成（供外部判定，INV-06/INV-07 依赖完成数）。
@@ -130,7 +153,7 @@ func was_counted() -> bool:
 
 
 ## 构建遮罩态的占格形状列表（INV-05：只含数量与形状，不含身份/品质/价值）。
-## 说明：V0.1 骨架阶段形状统一以 1x1 占位；具体物品形状由 Item&Inventory
+## 说明：V0.1 阶段形状统一以 1x1 占位；具体物品形状由 Item&Inventory
 ## 切片提供，此处仅保证「遮罩计数」语义成立。
 func _build_masked_shapes(count: int) -> Array:
 	var shapes: Array = []

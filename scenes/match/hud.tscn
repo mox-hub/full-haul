@@ -38,7 +38,7 @@ text = "撤离目标：完成容器 0/5（锁定）"
 [node name="MatchTimeLabel" type="Label" parent="Panel/Margin/Column"]
 unique_name_in_owner = true
 theme_override_font_sizes/font_size = 24
-text = "本局时长：--（计时占位）"
+text = "本局剩余时间：--"
 
 [node name="HealthTitle" type="Label" parent="Panel/Margin/Column"]
 theme_override_font_sizes/font_size = 24
@@ -53,7 +53,7 @@ color = Color(0.75, 0.2, 0.2, 1)
 unique_name_in_owner = true
 theme_override_font_sizes/font_size = 24
 autowrap_mode = 3
-text = "背包（占位）：携带物品 0 件 —— 格子视图由切片 5/6 接入"
+text = "背包：携带物品 0 件（已携带入背包格子）"
 
 [node name="ExtractBarLabel" type="Label" parent="Panel/Margin/Column"]
 unique_name_in_owner = true

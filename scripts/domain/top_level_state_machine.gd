@@ -35,6 +35,7 @@ var _config_loader: IConfigLoader = null
 ## 既有测试与最小切片可独立运行。后续切片注入具体实现后，转移逻辑交由
 ## 对应域服务托管（架构 §3 接口原则）。
 var _loadout_service: ILoadoutService = null
+var _run_session_service: IRunSessionService = null
 var _container_search_service: IContainerSearchService = null
 var _extract_service: IExtractService = null
 var _settlement_service: ISettlementService = null
@@ -45,6 +46,7 @@ var _state: RunState = null
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
 		loadout_service: ILoadoutService = null,
+		run_session_service: IRunSessionService = null,
 		container_search_service: IContainerSearchService = null,
 		extract_service: IExtractService = null,
 		settlement_service: ISettlementService = null) -> void:
@@ -52,6 +54,7 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 	_state_store = state_store
 	_config_loader = config_loader
 	_loadout_service = loadout_service
+	_run_session_service = run_session_service
 	_container_search_service = container_search_service
 	_extract_service = extract_service
 	_settlement_service = settlement_service
@@ -96,8 +99,14 @@ func on_loadout_cancelled() -> void:
 ## LOADOUT 确认并扣款成功 -> 初始化对局。
 ## 域拆分：当注入 ILoadoutService 时，背包校验/扣款/绑定交由 Loadout 域处理；
 ## 未注入时回退到骨架自带的行为（直接创建本局 RunState）。
+## 切片 4：当注入 IRunSessionService 时，对局初始化（RUN_INIT 会话状态：runId、
+## 双计时、完成数=0、撤离锁定、settled=false，AC-03）交由 RunSession 域创建。
 func on_loadout_confirmed(run_id: String) -> void:
 	_transition(RunState.Phase.RUN_INIT)
+	if _run_session_service != null:
+		_state = _run_session_service.create_run(run_id, _match_duration(), _extraction_duration())
+		_publish_extract_locked()
+		return
 	var cfg := _config_loader.get_config()
 	var match_duration := cfg.match_duration if cfg != null else 180
 	var extraction_duration := cfg.extraction_duration if cfg != null else 15
@@ -106,6 +115,7 @@ func on_loadout_confirmed(run_id: String) -> void:
 	_state_store.write(_state)
 	_bus.publish(DomainEvents.Events.RUN_INITIALIZED, DomainEvents.RunInitialized.new(
 		run_id, match_duration, 0, true, false))
+	_publish_extract_locked()
 
 
 ## 对局初始化成功 -> 进入局内锁定态（完成数<5）。
@@ -128,17 +138,39 @@ func on_required_containers_completed() -> void:
 
 
 ## 记录完成一个容器（Loot/Container 域上报，INV-06），并在达到阈值时撤离解锁
-## （INV-07）。域拆分：完成数由容器搜索域/调用方上报，顶层状态机只做阈值判定。
+## （INV-07）。域拆分：完成数由容器搜索域/调用方上报，顶层状态机只做阈值判定；
+## 切片 4：注入 IRunSessionService 时，完成数计数交由 RunSession 域维护（INV-06/07）；
+## 切片 6：注入 IContainerSearchService 时，以容器搜索域统计的完成数为准
+## （每容器 counted 幂等，INV-06），避免同一容器重复计数。
 func on_container_completed() -> void:
 	if _state == null:
 		return
-	_state.completed_container_count += 1
+	if _container_search_service != null:
+		_state.completed_container_count = _container_search_service.completed_container_count()
+	elif _run_session_service != null:
+		_run_session_service.on_container_completed(_state)
+	else:
+		_state.completed_container_count += 1
 	_state_store.write(_state)
 	var required := _required_completed_containers()
 	if _state.completed_container_count >= required and _can_transition(RunState.Phase.IN_RUN_EXTRACTABLE):
 		_transition(RunState.Phase.IN_RUN_EXTRACTABLE)
 		_bus.publish(DomainEvents.Events.EXTRACT_UNLOCKED, DomainEvents.ExtractUnlocked.new(
 			_state.completed_container_count))
+
+
+## 推进本局全局计时（总时间）。总时间归零 -> RUN_FAILED（INV-07/08）。
+## 域拆分：注入 IRunSessionService 时由 RunSession 域推进双计时之一；
+## 返回是否发生本次全局计时耗尽（已转移至 RUN_FAILED）。
+func tick_match_time(delta_seconds: float) -> bool:
+	if _state == null:
+		return false
+	if _run_session_service == null:
+		return false
+	if _run_session_service.tick_match_time(delta_seconds):
+		on_timeout()
+		return true
+	return false
 
 
 ## 撤离解锁所需完成容器数（读取配置单一来源 INV-16）。
@@ -150,15 +182,42 @@ func _required_completed_containers() -> int:
 	return 5
 
 
+## 一局总时长（读取配置单一来源 INV-16；未加载时回退默认 180）。
+func _match_duration() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.match_duration
+	return 180
+
+
+## 撤离读条时长（读取配置单一来源 INV-16；未加载时回退默认 15）。
+func _extraction_duration() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.extraction_duration
+	return 15
+
+
 ## 开始撤离 -> EXTRACTING（INV-08）。
-## 域拆分：当注入 IExtractService 时，由撤离域推进读条/判定；
+## 切片 7：当注入 IExtractService 时，先经撤离域重置读条（撤离时长单一来源
+## INV-16）再发布 EXTRACT_STARTED（携带重置后的剩余撤离时间）；
 ## 未注入时回退到骨架自带行为。
 func on_extract_started() -> void:
 	if not _can_transition(RunState.Phase.EXTRACTING):
 		return
 	_transition(RunState.Phase.EXTRACTING)
+	if _extract_service != null:
+		_extract_service.start_extraction(_state)
 	_bus.publish(DomainEvents.Events.EXTRACT_STARTED, DomainEvents.ExtractStarted.new(
 		_state.remaining_extraction_time))
+
+
+## 撤离锁定事件（INV-07）：新一局初始化时完成数 < 阈值，撤离处于锁定态。
+func _publish_extract_locked() -> void:
+	_bus.publish(DomainEvents.Events.EXTRACT_LOCKED, DomainEvents.ExtractLocked.new(
+		_state.completed_container_count if _state != null else 0))
 
 
 ## 推进撤离读条与总计时（域拆分：委托 IExtractService）。

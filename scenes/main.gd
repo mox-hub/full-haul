@@ -46,11 +46,50 @@ func _boot_framework() -> void:
 	## WORD-31：数据层经 RepositoryProvider 按配置装配（memory/sqlite）；
 	## 注入 RunFlowOrchestrator，表现层仍只依赖领域接口/事件总线。
 	var repos := RepositoryProvider.create_set()
-	_orchestrator = RunFlowOrchestrator.new(bus, _InMemoryRunStateStore.new(), ConfigLoaderAdapter.new(), repos)
+	## 切片 4：注入局内会话服务（RunSession 域，AC-03 双计时/完成数）。
+	## 一局一实例，经共享的局内状态存储读写（禁止全局单例承载运行态，P1-3）。
+	var run_state_store := _InMemoryRunStateStore.new()
+	var run_session := RunSessionService.new(run_state_store, bus, ConfigLoaderAdapter.new())
+	## 切片 5：注入物品与背包服务（Item & Inventory 域，AC-07/AC-08）。
+	## 物品定义来自配置数据仓储（数据驱动单一来源 INV-16）；背包/安全箱
+	## 两格在确认入场时按档位尺寸初始化。
+	var item_inventory := ItemInventoryService.new(repos.config_data, bus)
+	## 切片 6：注入容器搜索服务（Loot / Container 域，AC-04/05/06/17/18）。
+	## 容器搜索子状态机驱动单个容器从 UNOPENED 到 COMPLETED；完成计数
+	## 幂等（INV-06）。品质揭晓耗时读取配置单一来源（INV-16）。
+	var container_search := ContainerSearchService.new(bus, ConfigLoaderAdapter.new())
+	## 切片 7：注入撤离服务（Extract 域，AC-09/10/11，INV-07/08）。
+	## 撤离锁定/解锁（完成数阈值）、15 秒撤离读条与总计时并行推进、
+	## 成功/失败判定；撤离时长与解锁阈值读取配置单一来源（INV-16）。
+	var extract_service := ExtractService.new(run_state_store, ConfigLoaderAdapter.new())
+	## 切片 8：注入仓库服务（Warehouse 域，AC-14/INV-12）与结算服务
+	## （Settlement 域，AC-12/13，INV-09/10/11）。
+	## 仓库出售走 Transaction 域原子性与防重（INV-12）；物品价值经
+	## item_inventory 数据驱动定义解析（单一来源 INV-16）。
+	var warehouse_service := WarehouseService.new(
+		TransactionService.new(repos.run_result),
+		func(instance_id: String) -> int:
+			var item := item_inventory.get_item(instance_id) if item_inventory != null else null
+			if item == null:
+				return 0
+			var def := item_inventory.get_definition(item.definition_id) if item_inventory != null else null
+			return def.value if def != null else 0)
+	var settlement_service := SettlementService.new(warehouse_service)
+	## 切片 9：注入遥测服务（Telemetry 域，架构 §1.1 Config & Telemetry）。
+	## 订阅全部领域事件做埋点（规范 6.4：不构成产品规则来源），供诊断/验证。
+	var telemetry := TelemetryService.new(bus)
+	telemetry.start()
+	## 切片 3：注入入场装载服务（Loadout 域）。购买/扣款走 Transaction 域
+	## 原子性（INV-12）；初始货币由编排器开局初始化（AC-21）。
+	var loadout_service := LoadoutService.new(ConfigLoaderAdapter.new(),
+		TransactionService.new(repos.run_result), bus)
+	_orchestrator = RunFlowOrchestrator.new(bus, run_state_store, ConfigLoaderAdapter.new(), repos,
+		loadout_service, run_session, item_inventory, container_search, extract_service,
+		settlement_service, warehouse_service, telemetry)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
-	lobby_page.setup(_orchestrator)
-	loadout_page.setup(_orchestrator)
+	lobby_page.setup(bus, _orchestrator)
+	loadout_page.setup(bus, _orchestrator)
 	match_page.setup(bus, _orchestrator)
 	settlement_page.setup(_orchestrator)
 	router.setup(bus, {

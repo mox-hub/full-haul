@@ -92,8 +92,8 @@ func _wire(suite: GdUnitTestSuite) -> _Wired:
 	suite.add_child(w.match)
 	suite.add_child(w.settlement)
 
-	w.lobby.setup(w.orchestrator)
-	w.loadout.setup(w.orchestrator)
+	w.lobby.setup(w.bus_adapter, w.orchestrator)
+	w.loadout.setup(w.bus_adapter, w.orchestrator)
 	w.match.setup(w.bus_adapter, w.orchestrator)
 	w.settlement.setup(w.orchestrator)
 

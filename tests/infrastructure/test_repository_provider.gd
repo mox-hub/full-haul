@@ -53,9 +53,10 @@ func test_create_memory_set_has_all_repos() -> void:
 func test_create_memory_set_roundtrip_via_interfaces() -> void:
 	var set := RepositoryProvider.create_set()
 
-	## 配置数据写入 -> 经接口读取
-	set.config_data.load_backpack_offers()  # 空数据源可正常调用
-	assert_that(set.config_data.load_item_definitions().is_empty()).is_true()
+	## 配置数据经接口读取（切片 9：内存后端已种子化 V0.1 默认配置，单一来源 INV-16）
+	set.config_data.load_backpack_offers()
+	assert_that(set.config_data.load_item_definitions().is_empty()).is_false()
+	assert_that(set.config_data.load_item_definitions().has("item_battery")).is_true()
 
 	## 局外账户经接口读写
 	var profile: PlayerProfile = set.profile.load()
