@@ -1,0 +1,44 @@
+name: changelog-check
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    name: changelog.md 随更新修改校验
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码（全历史）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 校验 changelog.md 已随本次更新修改
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.event.pull_request.base.ref }}...HEAD"
+            DESC="PR #${{ github.event.pull_request.number }} 相对 ${{ github.event.pull_request.base.ref }}"
+          else
+            BEFORE="${{ github.event.before }}"
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              echo "首次推送，跳过校验"
+              exit 0
+            fi
+            RANGE="$BEFORE..${{ github.sha }}"
+            DESC="本次直推（${BEFORE:0:7}..${GITHUB_SHA:0:7}）"
+          fi
+          echo "检查范围：$DESC"
+          if git diff --name-only "$RANGE" | grep -x 'changelog.md'; then
+            echo "✓ changelog.md 已随本次更新修改"
+          else
+            echo "::error::${DESC} 未修改 changelog.md。请在根目录 changelog.md 的「未发布」区追加条目；确属不影响行为的改动，可给 PR 打 skip-changelog 标签豁免。"
+            exit 1
+          fi
