@@ -54,8 +54,12 @@ func _boot_framework() -> void:
 	## 物品定义来自配置数据仓储（数据驱动单一来源 INV-16）；背包/安全箱
 	## 两格在确认入场时按档位尺寸初始化。
 	var item_inventory := ItemInventoryService.new(repos.config_data, bus)
+	## 切片 6：注入容器搜索服务（Loot / Container 域，AC-04/05/06/17/18）。
+	## 容器搜索子状态机驱动单个容器从 UNOPENED 到 COMPLETED；完成计数
+	## 幂等（INV-06）。品质揭晓耗时读取配置单一来源（INV-16）。
+	var container_search := ContainerSearchService.new(bus, ConfigLoaderAdapter.new())
 	_orchestrator = RunFlowOrchestrator.new(bus, run_state_store, ConfigLoaderAdapter.new(), repos,
-		null, run_session, item_inventory)
+		null, run_session, item_inventory, container_search)
 
 	## 3. 表现层注入（页面只拿编排器；需要事件的页面/路由另拿总线）
 	lobby_page.setup(_orchestrator)

@@ -137,11 +137,15 @@ func on_required_containers_completed() -> void:
 
 ## 记录完成一个容器（Loot/Container 域上报，INV-06），并在达到阈值时撤离解锁
 ## （INV-07）。域拆分：完成数由容器搜索域/调用方上报，顶层状态机只做阈值判定；
-## 切片 4：注入 IRunSessionService 时，完成数计数交由 RunSession 域维护（INV-06/07）。
+## 切片 4：注入 IRunSessionService 时，完成数计数交由 RunSession 域维护（INV-06/07）；
+## 切片 6：注入 IContainerSearchService 时，以容器搜索域统计的完成数为准
+## （每容器 counted 幂等，INV-06），避免同一容器重复计数。
 func on_container_completed() -> void:
 	if _state == null:
 		return
-	if _run_session_service != null:
+	if _container_search_service != null:
+		_state.completed_container_count = _container_search_service.completed_container_count()
+	elif _run_session_service != null:
 		_run_session_service.on_container_completed(_state)
 	else:
 		_state.completed_container_count += 1

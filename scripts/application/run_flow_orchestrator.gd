@@ -38,6 +38,9 @@ var _run_session_service: IRunSessionService = null
 ## 注入的物品与背包服务（切片 5 Item & Inventory 域；null 表示未接线，
 ## 回退占位行为）
 var _item_inventory_service: IItemInventoryService = null
+## 注入的容器搜索服务（切片 6 Loot / Container 域；null 表示未接线，
+## 回退占位行为）
+var _container_search_service: IContainerSearchService = null
 ## 顶层状态机（领域层，编排器内部持有）
 var _sm: TopLevelStateMachine = null
 
@@ -54,11 +57,16 @@ var _loaded_config_data: Dictionary = {}
 ## 阶段信息，故在此留存成败，供存档写入）
 var _last_run_outcome := ""
 
+## 占位搜索序号（切片 6：占位「完成容器」也走 Loot 域，登记占位容器，
+## 使完成数统计与容器搜索域一致）
+var _placeholder_seq := 0
+
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
 		repositories: RepositorySet = null, loadout_service: ILoadoutService = null,
 		run_session_service: IRunSessionService = null,
-		item_inventory_service: IItemInventoryService = null) -> void:
+		item_inventory_service: IItemInventoryService = null,
+		container_search_service: IContainerSearchService = null) -> void:
 	_bus = bus
 	_store = state_store
 	_config_loader = config_loader
@@ -66,8 +74,9 @@ func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLo
 	_loadout_service = loadout_service
 	_run_session_service = run_session_service
 	_item_inventory_service = item_inventory_service
+	_container_search_service = container_search_service
 	_sm = TopLevelStateMachine.new(bus, state_store, config_loader,
-		loadout_service, run_session_service)
+		loadout_service, run_session_service, container_search_service)
 
 
 ## 启动：BOOT -> OUT_OF_RUN（主场景引导完成后调用一次）。
@@ -115,6 +124,9 @@ func confirm_loadout() -> void:
 			_repos.profile.save(profile)
 	_run_seq += 1
 	_sm.on_loadout_confirmed("run-%04d" % _run_seq)
+	## 切片 6：新一局开始清空上局容器登记（INV-14 多局隔离）
+	if _container_search_service != null:
+		_container_search_service.reset()
 	if _loadout_service != null:
 		## 确认绑定本局背包（购买已成功；绑定校验应通过）
 		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id)
@@ -143,15 +155,64 @@ func tick_match_time(delta_seconds: float) -> bool:
 
 ## 用例（占位）：完成一个必搜容器（IN_RUN_* 内有效）。
 ## 返回完成后累计的完成容器数（供 HUD 展示）；局外调用返回 -1。
+## 切片 6：注入 ContainerSearchService 时，占位搜索同样走 Loot 域——登记并
+## 完成一个占位容器，使完成数统计（INV-06 幂等）与容器搜索域保持一致。
 func complete_container_placeholder() -> int:
 	var state: RunState = _store.read()
 	if state == null:
 		return -1
 	if state.phase != RunState.Phase.IN_RUN_LOCKED and state.phase != RunState.Phase.IN_RUN_EXTRACTABLE:
 		return -1
+	if _container_search_service != null:
+		_placeholder_seq += 1
+		var ph_container := "placeholder-%03d" % _placeholder_seq
+		var ph_item := "ph-%03d" % _placeholder_seq
+		_container_search_service.open_container(ph_container, 1, [ph_item])
+		_container_search_service.start_reveal(ph_container, ph_item, "common")
+		_container_search_service.complete_reveal(ph_container, ph_item,
+			"placeholder-def", "common", 10, Vector2i.ONE)
 	_sm.on_container_completed()
 	_persist_run_snapshot()
 	return _store.read().completed_container_count
+
+
+## ---- 局内（容器搜索 / Loot 域，切片 6）----
+
+## 用例：打开一个容器进入搜索（IN_RUN_* 内有效，INV-05）。
+## 注入 ContainerSearchService 时打开容器（item_instance_ids 可选）；
+## 返回是否打开成功。
+func open_container(container_id: String, item_count: int, item_instance_ids: Array = []) -> bool:
+	if _container_search_service == null:
+		return false
+	if not _in_run_phase():
+		return false
+	return _container_search_service.open_container(container_id, item_count, item_instance_ids)
+
+
+## 用例：开始揭晓容器内一件物品（品质决定耗时）。
+func start_reveal(container_id: String, instance_id: String, rarity: String) -> bool:
+	if _container_search_service == null:
+		return false
+	if not _in_run_phase():
+		return false
+	return _container_search_service.start_reveal(container_id, instance_id, rarity)
+
+
+## 用例：一件物品揭晓完成。
+## 返回是否本次揭晓使容器首次完成（INV-06）：首次完成时经顶层状态机
+## 更新完成数并做撤离解锁阈值判定（INV-07）。
+func complete_reveal(container_id: String, instance_id: String, definition_id: String,
+		rarity: String, value: int, size: Vector2i) -> bool:
+	if _container_search_service == null:
+		return false
+	if not _in_run_phase():
+		return false
+	var newly_completed := _container_search_service.complete_reveal(
+		container_id, instance_id, definition_id, rarity, value, size)
+	if newly_completed:
+		_sm.on_container_completed()
+		_persist_run_snapshot()
+	return newly_completed
 
 
 ## 用例：开始撤离读条（IN_RUN_EXTRACTABLE -> EXTRACTING）。
@@ -228,6 +289,12 @@ func current_profile() -> PlayerProfile:
 ## 未接线时返回 null。
 func item_inventory() -> IItemInventoryService:
 	return _item_inventory_service
+
+
+## 当前容器搜索服务（切片 6；供表现层/后续切片经接口访问）。
+## 未接线时返回 null。
+func container_search() -> IContainerSearchService:
+	return _container_search_service
 
 
 ## ---- WORD-31 数据层接线辅助（应用层编排侧，领域/表现层不感知）----
@@ -334,3 +401,13 @@ func _load_profile() -> PlayerProfile:
 	if _repos == null or _repos.profile == null:
 		return null
 	return _repos.profile.load()
+
+
+## 是否处于局内阶段（IN_RUN_LOCKED / IN_RUN_EXTRACTABLE）。
+## 容器搜索用例仅在本局内有效（局外调用不污染领域状态）。
+func _in_run_phase() -> bool:
+	var state: RunState = _store.read()
+	if state == null:
+		return false
+	return state.phase == RunState.Phase.IN_RUN_LOCKED \
+		or state.phase == RunState.Phase.IN_RUN_EXTRACTABLE

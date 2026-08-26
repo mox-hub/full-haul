@@ -106,3 +106,42 @@ func test_completed_is_terminal() -> void:
 	assert_that(csm.is_completed()).is_true()
 	## 终态不可再开始揭晓
 	assert_that(csm.start_reveal("i-2", "common")).is_false()
+
+
+## [ContainerSearchStateMachine] 揭晓守卫（INV-05）：未开始揭晓（MASKED）不得完成揭晓
+func test_reveal_without_start_guarded() -> void:
+	var csm := ContainerSearchStateMachine.new("c-6", null, null)
+	csm.open(1)
+	assert_that(csm.phase).is_equal(ContainerSearchStateMachine.Phase.MASKED)
+	## MASKED 直接完成揭晓应被拒绝（须先 start_reveal，INV-05 不泄露身份）
+	assert_that(csm.complete_reveal("i-1", "def-1", "common", 10, Vector2i.ONE)).is_false()
+	assert_that(csm.phase).is_equal(ContainerSearchStateMachine.Phase.MASKED)
+
+
+## [ContainerSearchStateMachine] 物品揭晓幂等：同一实例只揭晓一次，不重复计入已揭晓数
+func test_same_instance_reveal_idempotent() -> void:
+	var csm := ContainerSearchStateMachine.new("c-7", null, null)
+	csm.open(2)
+	## 同一实例重复揭晓：第二次不重复计入，也不推进阶段/完成
+	assert_that(csm.start_reveal("i-1", "common")).is_true()
+	assert_that(csm.complete_reveal("i-1", "def-1", "common", 10, Vector2i.ONE)).is_false()
+	assert_that(csm.revealed_count).is_equal(1)
+	assert_that(csm.complete_reveal("i-1", "def-1", "common", 10, Vector2i.ONE)).is_false()
+	assert_that(csm.revealed_count).is_equal(1)
+	assert_that(csm.phase).is_equal(ContainerSearchStateMachine.Phase.PARTIALLY_REVEALED)
+	## 另一实例揭晓后仍未完成，第二件完成时才计数（INV-06）
+	csm.start_reveal("i-2", "rare")
+	assert_that(csm.complete_reveal("i-2", "def-2", "rare", 50, Vector2i.ONE)).is_true()
+	assert_that(csm.is_completed()).is_true()
+	assert_that(csm.was_counted()).is_true()
+
+
+## [ContainerSearchStateMachine] 打开时提供实例 id：遮罩计数与实例数一致（遮罩与最终尺寸一致）
+func test_open_with_instance_ids_aligns_count() -> void:
+	var csm := ContainerSearchStateMachine.new("c-8", null, null)
+	## 提供实例列表时以实例数为准（忽略传入的 item_count，保证遮罩计数一致）
+	assert_that(csm.open(99, ["i-1", "i-2", "i-3"])).is_true()
+	assert_that(csm.item_count).is_equal(3)
+	assert_that(csm.item_instance_ids.size()).is_equal(3)
+	assert_that(csm.item_instance_ids.has("i-1")).is_true()
+	assert_that(csm.phase).is_equal(ContainerSearchStateMachine.Phase.MASKED)

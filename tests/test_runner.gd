@@ -46,11 +46,13 @@ func _ready() -> void:
 	_re_stats = RegEx.create_from_string(GDU_STATS)
 	_re_ansi = RegEx.create_from_string("\\x1b\\[[0-9;]*[a-zA-Z]")
 
+	_run_suite("res://tests/application/test_container_search_wiring.gd", "test_container_search_wiring")
 	_run_suite("res://tests/application/test_item_inventory_wiring.gd", "test_item_inventory_wiring")
 	_run_suite("res://tests/application/test_profile_loadout_wiring.gd", "test_profile_loadout_wiring")
 	_run_suite("res://tests/application/test_repository_wiring.gd", "test_repository_wiring")
 	_run_suite("res://tests/application/test_run_flow_orchestrator.gd", "test_run_flow_orchestrator")
 	_run_suite("res://tests/application/test_run_session_wiring.gd", "test_run_session_wiring")
+	_run_suite("res://tests/domain/test_container_search_service.gd", "test_container_search_service")
 	_run_suite("res://tests/domain/test_container_search_state_machine.gd", "test_container_search_state_machine")
 	_run_suite("res://tests/domain/test_domain_smoke.gd", "test_domain_smoke")
 	_run_suite("res://tests/domain/test_game_config.gd", "test_game_config")
