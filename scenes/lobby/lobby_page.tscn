@@ -42,6 +42,7 @@ offset_right = -16.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
+texture_filter = 2
 mouse_filter = 2
 alignment = 1
 
@@ -74,6 +75,7 @@ offset_right = -16.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
+texture_filter = 2
 mouse_filter = 2
 alignment = 1
 
@@ -106,6 +108,7 @@ offset_right = -16.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
+texture_filter = 2
 mouse_filter = 2
 alignment = 1
 
@@ -127,11 +130,10 @@ horizontal_alignment = 1
 [node name="BaseArea" type="Control" parent="."]
 anchor_right = 1.0
 offset_top = 140.0
-offset_bottom = 956.0
-mouse_filter = 2
+offset_bottom = 810.0
 
 [node name="BaseView" type="Node2D" parent="BaseArea"]
-position = Vector2(540, 408)
+position = Vector2(540, 405)
 texture_filter = 1
 script = ExtResource("2_base")
 
@@ -139,24 +141,26 @@ script = ExtResource("2_base")
 unique_name_in_owner = true
 anchor_right = 1.0
 offset_left = 32.0
-offset_top = 980.0
+offset_top = 950.0
 offset_right = -32.0
-offset_bottom = 1612.0
+offset_bottom = 1646.0
 
 [node name="BackpackCaption" type="Label" parent="GridPanel"]
-offset_left = 94.0
-offset_top = 14.0
-offset_right = 400.0
-offset_bottom = 44.0
+texture_filter = 2
+offset_left = 24.0
+offset_top = 12.0
+offset_right = 340.0
+offset_bottom = 42.0
 theme_override_colors/font_color = Color(0.604, 0.647, 0.741, 1)
 theme_override_font_sizes/font_size = 24
 text = "背包"
 
 [node name="SafeCaption" type="Label" parent="GridPanel"]
-offset_left = 796.0
-offset_top = 14.0
-offset_right = 922.0
-offset_bottom = 44.0
+texture_filter = 2
+offset_left = 842.0
+offset_top = 12.0
+offset_right = 992.0
+offset_bottom = 42.0
 theme_override_colors/font_color = Color(1, 0.541, 0.478, 1)
 theme_override_font_sizes/font_size = 24
 text = "安全箱"
@@ -165,8 +169,8 @@ horizontal_alignment = 1
 [node name="GridRow" type="HBoxContainer" parent="GridPanel"]
 anchor_right = 1.0
 offset_top = 48.0
-offset_bottom = 616.0
-theme_override_constants/separation = 24
+offset_bottom = 684.0
+theme_override_constants/separation = 20
 alignment = 1
 
 [node name="BackpackGrid" type="GridContainer" parent="GridPanel/GridRow"]
@@ -182,23 +186,25 @@ theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 
 [node name="QuickBar" type="HBoxContainer" parent="."]
+anchor_top = 1.0
 anchor_right = 1.0
+anchor_bottom = 1.0
 offset_left = 32.0
-offset_top = 1636.0
+offset_top = -256.0
 offset_right = -32.0
-offset_bottom = 1884.0
-theme_override_constants/separation = 26
+offset_bottom = -16.0
+theme_override_constants/separation = 16
 alignment = 1
 
 [node name="GardenButton" type="Button" parent="QuickBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 150)
+custom_minimum_size = Vector2(156, 156)
 size_flags_vertical = 4
 text = "菜园"
 
 [node name="WorkshopButton" type="Button" parent="QuickBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 150)
+custom_minimum_size = Vector2(156, 156)
 size_flags_vertical = 4
 text = "工坊"
 
@@ -210,13 +216,13 @@ text = "出击"
 
 [node name="MarketButton" type="Button" parent="QuickBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 150)
+custom_minimum_size = Vector2(156, 156)
 size_flags_vertical = 4
 text = "市场"
 
 [node name="TechButton" type="Button" parent="QuickBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 150)
+custom_minimum_size = Vector2(156, 156)
 size_flags_vertical = 4
 text = "科技"
 
@@ -263,6 +269,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(920, 1160)
 
 [node name="PopupMargin" type="MarginContainer" parent="WarehousePopup/Center/PopupPanel"]
+texture_filter = 2
 theme_override_constants/margin_left = 28
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 28

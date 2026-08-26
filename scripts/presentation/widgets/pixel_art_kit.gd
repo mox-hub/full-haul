@@ -20,6 +20,20 @@ static func canvas(w: int, h: int) -> Image:
 	return Image.create_empty(maxi(w, 1), maxi(h, 1), false, Image.FORMAT_RGBA8)
 
 
+## 最近邻整倍放大（像素 UI 管线：低分辨率框架 -> 控件纹理）。
+static func magnify(src: Image, factor: int) -> Image:
+	var w := src.get_width()
+	var h := src.get_height()
+	var out := Image.create_empty(w * factor, h * factor, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var c := src.get_pixel(x, y)
+			for dy in factor:
+				for dx in factor:
+					out.set_pixel(x * factor + dx, y * factor + dy, c)
+	return out
+
+
 ## 单点写入（越界裁剪，直接覆盖）。
 static func px(img: Image, x: int, y: int, c: Color) -> void:
 	if _inside(img, x, y):

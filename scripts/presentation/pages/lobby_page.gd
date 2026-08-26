@@ -22,7 +22,14 @@ class_name LobbyPage
 ## 背包/安全箱可见格阵（示意草图：6 列 = 5 列背包 + 1 列安全箱，4 行）
 const GRID_COLS := 5
 const GRID_ROWS := 4
-const CELL_SIZE := 132.0
+const CELL_SIZE := 150.0
+## 快捷按钮直径（虚拟像素，实际尺寸 = 虚拟 × PixelUiKit.PX）
+const SMALL_BUTTON_D := 26
+const BIG_BUTTON_D := 40
+## 基地视图长按拖动的活动范围（design px，相对初始位置）
+const BASE_PAN_MAX := Vector2(110.0, 70.0)
+## 基地视图初始位置（BaseArea 局部坐标，画布中心）
+const BASE_VIEW_HOME := Vector2(540.0, 405.0)
 
 ## 品质色（仓库条目色条）
 const RARITY_COLORS := {
@@ -53,6 +60,10 @@ var _orchestrator: RunFlowOrchestrator = null
 var _bus: IEventBus = null
 ## Toast 隐藏定时器令牌（连点时只让最后一个定时器生效）
 var _toast_token := 0
+## 基地视图长按拖动状态
+var _base_dragging := false
+var _base_drag_mouse := Vector2.ZERO
+var _base_drag_view := Vector2.ZERO
 
 @onready var currency_chip: Button = $%CurrencyChip
 @onready var warehouse_chip: Button = $%WarehouseChip
@@ -73,6 +84,8 @@ var _toast_token := 0
 @onready var warehouse_list: VBoxContainer = $%WarehouseList
 @onready var popup_close: Button = $%PopupClose
 @onready var popup_panel: PanelContainer = $%PopupPanel
+@onready var base_area: Control = $BaseArea
+@onready var base_view: Node2D = $BaseArea/BaseView
 
 
 func _ready() -> void:
@@ -85,6 +98,7 @@ func _ready() -> void:
 	workshop_button.pressed.connect(func(): _on_placeholder_pressed("工坊"))
 	market_button.pressed.connect(func(): _on_placeholder_pressed("市场"))
 	tech_button.pressed.connect(func(): _on_placeholder_pressed("科技"))
+	base_area.gui_input.connect(_on_base_area_gui_input)
 
 
 ## 组合根（main.gd）注入编排器与事件总线。
@@ -182,6 +196,7 @@ func _rebuild_warehouse(instance_ids: Array) -> void:
 		empty.add_theme_color_override("font_color", COL_TEXT_DIM)
 		empty.add_theme_font_size_override("font_size", 26)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		warehouse_list.add_child(empty)
 		return
 	for instance_id in instance_ids:
@@ -192,7 +207,8 @@ func _rebuild_warehouse(instance_ids: Array) -> void:
 func _make_warehouse_row(instance_id: String) -> Control:
 	var info := _item_info(instance_id)
 	var row := PanelContainer.new()
-	row.add_theme_stylebox_override("panel", _sb(Color(0.114, 0.137, 0.188), COL_BORDER, 2, 12))
+	row.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	row.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(Color(0.114, 0.137, 0.188), COL_BORDER))
 	row.custom_minimum_size = Vector2(0, 76)
 	var margin := MarginContainer.new()
 	for side in ["margin_left", "margin_right"]:
@@ -203,10 +219,13 @@ func _make_warehouse_row(instance_id: String) -> Control:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	margin.add_child(box)
-	## 品质色条
+	## 品质色条（纯色小块，随行内像素风直角呈现）
 	var rarity_bar := Panel.new()
 	var rarity_color: Color = RARITY_COLORS.get(info.rarity, COL_TEXT_DIM)
-	rarity_bar.add_theme_stylebox_override("panel", _sb(rarity_color, rarity_color, 0, 6))
+	var bar_sb := StyleBoxFlat.new()
+	bar_sb.bg_color = rarity_color
+	bar_sb.anti_aliasing = false
+	rarity_bar.add_theme_stylebox_override("panel", bar_sb)
 	rarity_bar.custom_minimum_size = Vector2(14, 44)
 	rarity_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	box.add_child(rarity_bar)
@@ -214,13 +233,14 @@ func _make_warehouse_row(instance_id: String) -> Control:
 	label.text = "%s　价值 %d" % [info.name, info.value]
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	label.add_theme_font_size_override("font_size", 28)
 	box.add_child(label)
 	var sell := Button.new()
 	sell.text = "出售"
 	sell.custom_minimum_size = Vector2(150, 58)
 	sell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_style_button(sell, COL_RED, COL_RED_BORDER, 12, 26, Color(1, 0.96, 0.94))
+	_pixel_rect_button(sell, COL_RED, COL_RED_BORDER, 26, Color(1, 0.96, 0.94))
 	sell.pressed.connect(func(): _on_sell_pressed(instance_id))
 	box.add_child(sell)
 	return row
@@ -264,38 +284,67 @@ func _show_toast(text: String) -> void:
 			toast_label.visible = false)
 
 
-## ---- 像素风扁平样式 ----
+## ---- 像素风样式（统一管线：PixelUiKit 低分辨率框架 -> 最近邻放大）----
 
 func _apply_styles() -> void:
 	for chip in [currency_chip, warehouse_chip, backpack_chip]:
-		_style_button(chip, COL_CHIP_BG, COL_BORDER, 16, 20, COL_TEXT_DIM)
+		_pixel_rect_button(chip, COL_CHIP_BG, COL_BORDER, 20, COL_TEXT_DIM)
 	for btn in [garden_button, workshop_button, market_button, tech_button]:
-		_style_button(btn, COL_CHIP_BG, COL_BORDER, 75, 30, COL_TEXT)
-	_style_button(start_button, COL_RED, COL_RED_BORDER, 120, 46, Color(1, 0.96, 0.94))
-	_style_button(popup_close, COL_CHIP_BG, COL_BORDER, 14, 30, COL_TEXT)
-	grid_panel.add_theme_stylebox_override("panel", _sb(COL_PANEL, COL_BORDER, 4, 20))
-	popup_panel.add_theme_stylebox_override("panel", _sb(COL_PANEL, COL_BORDER, 4, 20))
+		_pixel_circle_button(btn, SMALL_BUTTON_D, COL_CHIP_BG, COL_BORDER, 30, COL_TEXT)
+	_pixel_circle_button(start_button, BIG_BUTTON_D, COL_RED, COL_RED_BORDER, 46, Color(1, 0.96, 0.94))
+	_pixel_rect_button(popup_close, COL_CHIP_BG, COL_BORDER, 30, COL_TEXT)
+	for panel in [grid_panel, popup_panel]:
+		panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		panel.add_theme_stylebox_override("panel", PixelUiKit.frame_stylebox(COL_PANEL, COL_BORDER))
 
 
-func _style_button(btn: Button, bg: Color, border: Color, radius: int,
+## 矩形像素按钮（凸台框架 9-slice；文字改由线性过滤的子标签承载，保持字体平滑）。
+func _pixel_rect_button(btn: Button, fill: Color, border: Color,
 		font_size: int, font_color: Color) -> void:
-	btn.add_theme_stylebox_override("normal", _sb(bg, border, 3, radius))
-	btn.add_theme_stylebox_override("hover", _sb(bg.lightened(0.06), border.lightened(0.08), 3, radius))
-	btn.add_theme_stylebox_override("pressed", _sb(bg.darkened(0.12), border.darkened(0.1), 3, radius))
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.add_theme_stylebox_override("normal", PixelUiKit.frame_stylebox(fill, border))
+	btn.add_theme_stylebox_override("hover", PixelUiKit.frame_stylebox(fill.lightened(0.05), border.lightened(0.08)))
+	btn.add_theme_stylebox_override("pressed", PixelUiKit.frame_stylebox(fill.darkened(0.08), border.darkened(0.1)))
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_apply_button_font(btn, font_size, font_color)
+	_swap_text_to_smooth_label(btn, font_size, font_color)
+
+
+## 圆形像素按钮（整图铺放，尺寸 = 虚拟直径 × 颗粒度）。
+func _pixel_circle_button(btn: Button, d_virtual: int, fill: Color, border: Color,
+		font_size: int, font_color: Color) -> void:
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var side := PixelUiKit.circle_button_size(d_virtual)
+	btn.custom_minimum_size = Vector2(side, side)
+	btn.add_theme_stylebox_override("normal", PixelUiKit.circle_stylebox(d_virtual, fill, border, false))
+	btn.add_theme_stylebox_override("hover", PixelUiKit.circle_stylebox(d_virtual, fill.lightened(0.05), border.lightened(0.08), false))
+	btn.add_theme_stylebox_override("pressed", PixelUiKit.circle_stylebox(d_virtual, fill, border, true))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_apply_button_font(btn, font_size, font_color)
+	_swap_text_to_smooth_label(btn, font_size, font_color)
+
+
+## 按钮自身处于 NEAREST 过滤下，把 text 转为 LINEAR 过滤的居中子标签。
+func _swap_text_to_smooth_label(btn: Button, font_size: int, font_color: Color) -> void:
+	if btn.text == "":
+		return
+	var label := Label.new()
+	label.text = btn.text
+	btn.text = ""
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", font_color)
+	btn.add_child(label)
+
+
+func _apply_button_font(btn: Button, font_size: int, font_color: Color) -> void:
 	for color_key in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
 		btn.add_theme_color_override(color_key, font_color)
 	btn.add_theme_font_size_override("font_size", font_size)
-
-
-func _sb(bg: Color, border: Color, border_w: int, radius: int) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(border_w)
-	sb.set_corner_radius_all(radius)
-	sb.anti_aliasing = false
-	return sb
 
 
 ## 生成背包/安全箱格阵（示意草图：5 列背包 + 1 列安全箱 × 4 行）。
@@ -308,9 +357,26 @@ func _build_grids() -> void:
 
 func _make_cell(is_safe: bool) -> Control:
 	var cell := Panel.new()
+	cell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	cell.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
 	if is_safe:
-		cell.add_theme_stylebox_override("panel", _sb(COL_SAFE_BG, COL_SAFE_BORDER, 3, 10))
+		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(COL_SAFE_BG, COL_SAFE_BORDER))
 	else:
-		cell.add_theme_stylebox_override("panel", _sb(COL_CELL_BG, COL_CELL_BORDER, 3, 10))
+		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(COL_CELL_BG, COL_CELL_BORDER))
 	return cell
+
+
+## ---- 基地视图长按拖动 ----
+
+func _on_base_area_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_base_dragging = event.pressed
+		if _base_dragging:
+			_base_drag_mouse = (event as InputEventMouseButton).position
+			_base_drag_view = base_view.position
+	elif event is InputEventMouseMotion and _base_dragging:
+		var motion := event as InputEventMouseMotion
+		var target: Vector2 = _base_drag_view + motion.position - _base_drag_mouse
+		target.x = clampf(target.x, BASE_VIEW_HOME.x - BASE_PAN_MAX.x, BASE_VIEW_HOME.x + BASE_PAN_MAX.x)
+		target.y = clampf(target.y, BASE_VIEW_HOME.y - BASE_PAN_MAX.y, BASE_VIEW_HOME.y + BASE_PAN_MAX.y)
+		base_view.position = target
