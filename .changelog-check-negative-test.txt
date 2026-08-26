@@ -1,0 +1,1 @@
+临时文件：用于验证 changelog-check 负向用例
