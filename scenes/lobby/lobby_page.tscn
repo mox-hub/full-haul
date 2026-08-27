@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/pages/lobby_page.gd" id="1_lobby"]
-[ext_resource type="Script" path="res://scenes/lobby/base_view.gd" id="2_base"]
+[ext_resource type="Script" path="res://scenes/lobby/warehouse_view.gd" id="2_base"]
 
 [node name="LobbyPage" type="Control"]
 anchors_preset = 15
@@ -176,9 +176,21 @@ anchor_right = 1.0
 offset_top = 140.0
 offset_bottom = 810.0
 
-[node name="BaseView" type="Node2D" parent="BaseArea"]
-position = Vector2(540, 405)
-texture_filter = 1
+[node name="SceneViewportContainer" type="SubViewportContainer" parent="BaseArea"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+stretch = true
+
+[node name="SceneViewport" type="SubViewport" parent="BaseArea/SceneViewportContainer"]
+handle_input_locally = false
+size = Vector2i(1080, 670)
+render_target_update_mode = 4
+
+[node name="WarehouseView" type="Node2D" parent="BaseArea/SceneViewportContainer/SceneViewport"]
 script = ExtResource("2_base")
 
 [node name="GridPanel" type="Panel" parent="."]

@@ -1,9 +1,10 @@
-## lobby_page.gd —— FullHaul 表现层：局外主页（首页视觉 V0.1，WORD-40）
+## lobby_page.gd —— FullHaul 表现层：局外主页（仓库场景视觉升级 V1）
 ##
 ## 职责：
-##   按示意草图还原首页布局（像素化 2.5D 风格）：
+##   首页布局与交互接线：
 ##   - 顶部三属性栏：货币 / 仓库（点按打开仓库出售弹窗）/ 背包档位
-##   - 中部 2.5D 俯视像素基地（BaseView，纯表现无业务）
+##   - 中部仓库场景（WarehouseView：底图+叠层物；可拖动平移，点击货架
+##     等叠层物同样触发对应弹窗/伏笔提示）
 ##   - 背包格阵 + 安全箱格阵（红框列，视觉区）
 ##   - 快捷按钮：菜园/工坊/出击（开始一局）/市场/科技（占位）
 ##   功能链与切片 9 保持一致：货币展示、仓库出售（移入弹窗）、
@@ -33,11 +34,8 @@ const HUD_CIRCLE_D := 16
 ## 生命/氧气当前百分比（占位常量；生命/属性域为未来方向，接入后由事件驱动）
 const HUD_HP := 1.0
 const HUD_O2 := 1.0
-## 基地视图长按拖动的活动范围（design px，相对初始位置）
-const BASE_PAN_MAX := Vector2(110.0, 70.0)
-## 基地视图初始位置（BaseArea 局部坐标，画布中心）
-const BASE_VIEW_HOME := Vector2(540.0, 405.0)
-## 像素风调色板/品质色统一取自 PixelUiKit（首页/局内共用单一来源）
+## 场景点击判定阈值（拖动位移低于此值视为点击叠层物）
+const PROP_TAP_RADIUS := 8.0
 
 ## 应用编排层（组合根注入；仅调用其用例方法）
 var _orchestrator: RunFlowOrchestrator = null
@@ -45,10 +43,10 @@ var _orchestrator: RunFlowOrchestrator = null
 var _bus: IEventBus = null
 ## Toast 隐藏定时器令牌（连点时只让最后一个定时器生效）
 var _toast_token := 0
-## 基地视图长按拖动状态
+## 场景拖动状态
 var _base_dragging := false
 var _base_drag_mouse := Vector2.ZERO
-var _base_drag_view := Vector2.ZERO
+var _base_drag_pan := Vector2.ZERO
 
 @onready var currency_icon: TextureRect = $%CurrencyIcon
 @onready var currency_value: Label = $%CurrencyValue
@@ -75,7 +73,7 @@ var _base_drag_view := Vector2.ZERO
 @onready var tech_button: Button = $%TechButton
 @onready var toast_label: Label = $%ToastLabel
 @onready var base_area: Control = $BaseArea
-@onready var base_view: Node2D = $BaseArea/BaseView
+@onready var warehouse_view: WarehouseView = $BaseArea/SceneViewportContainer/SceneViewport/WarehouseView
 
 ## 仓库出售弹窗（PopupBase 程序化构建，见 _build_warehouse_popup）
 var warehouse_popup: PopupBase = null
@@ -94,6 +92,7 @@ func _ready() -> void:
 	market_button.pressed.connect(func(): _on_placeholder_pressed("市场"))
 	tech_button.pressed.connect(func(): _on_placeholder_pressed("科技"))
 	base_area.gui_input.connect(_on_base_area_gui_input)
+	warehouse_view.prop_activated.connect(_on_warehouse_prop_activated)
 
 
 ## 组合根（main.gd）注入编排器与事件总线。
@@ -106,6 +105,15 @@ func setup(bus: IEventBus, orchestrator: RunFlowOrchestrator) -> void:
 		_bus.subscribe(DomainEvents.Events.WAREHOUSE_ITEM_ADDED, _on_warehouse_changed)
 		_bus.subscribe(DomainEvents.Events.ITEM_SOLD, _on_warehouse_changed)
 	_refresh()
+
+
+## [叠层物点击] 货架/地堆 → 仓库弹窗；卷帘门 → 撤离伏笔提示。
+func _on_warehouse_prop_activated(_prop_id: String, action: String) -> void:
+	match action:
+		"warehouse":
+			_on_warehouse_button_pressed()
+		"extract":
+			_show_toast("出车准备中，敬请期待")
 
 
 ## [出击] 开始一局：只调用应用编排层用例（同旧版「开始一局」）。
@@ -353,17 +361,16 @@ func _make_cell(is_safe: bool) -> Control:
 	return cell
 
 
-## ---- 基地视图长按拖动 ----
+## ---- 仓库场景拖动 / 叠层物点击 ----
 
 func _on_base_area_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_base_dragging = event.pressed
 		if _base_dragging:
 			_base_drag_mouse = (event as InputEventMouseButton).position
-			_base_drag_view = base_view.position
+			_base_drag_pan = warehouse_view.pan()
+		elif warehouse_view.pan().distance_to(_base_drag_pan) <= PROP_TAP_RADIUS:
+			warehouse_view.try_activate_at(base_area.global_position + event.position)
 	elif event is InputEventMouseMotion and _base_dragging:
 		var motion := event as InputEventMouseMotion
-		var target: Vector2 = _base_drag_view + motion.position - _base_drag_mouse
-		target.x = clampf(target.x, BASE_VIEW_HOME.x - BASE_PAN_MAX.x, BASE_VIEW_HOME.x + BASE_PAN_MAX.x)
-		target.y = clampf(target.y, BASE_VIEW_HOME.y - BASE_PAN_MAX.y, BASE_VIEW_HOME.y + BASE_PAN_MAX.y)
-		base_view.position = target
+		warehouse_view.set_pan(_base_drag_pan + motion.position - _base_drag_mouse)

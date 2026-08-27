@@ -18,11 +18,17 @@ func _on_frame() -> void:
 	var lobby := _main.get_node("UiRoot/LobbyPage")
 	var loadout := _main.get_node("UiRoot/LoadoutPage")
 	var match_page := _main.get_node("UiRoot/MatchPage")
+	var view := lobby.get_node("BaseArea/SceneViewportContainer/SceneViewport/WarehouseView")
 	match _stage:
 		0:
 			if _frames == 12 and lobby.visible:
 				_save("lobby_preview_home.png")
-			if _frames >= 20 and lobby.visible:
+			## 叠层物热点点击回放：命中货架 A → 仓库弹窗
+			if _frames == 16 and lobby.visible:
+				var canvas_pos: Vector2 = view.get_canvas_transform() * view.prop_center("shelf_a")
+				view.try_activate_at(canvas_pos)
+			if _frames >= 24 and lobby.visible:
+				_save("lobby_preview_warehouse.png")
 				(lobby.get_node("%StartButton") as Button).pressed.emit()
 				(loadout.get_node("%ConfirmButton") as Button).pressed.emit()
 				_stage = 1
