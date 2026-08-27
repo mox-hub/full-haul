@@ -33,7 +33,7 @@ window/handheld/orientation=1
 
 [gui]
 
-## 全局默认字体（中文 OFL 字体内嵌；Web 导出无系统字体回退，必须自带）
+; 全局默认字体（中文 OFL 字体内嵌；Web 导出无系统字体回退，必须自带）
 theme/custom_font="res://assets/fonts/NotoSansSC-Regular.otf"
 
 [editor_plugins]
@@ -50,5 +50,5 @@ db/backend="memory"
 
 [rendering]
 
-## Web 小游戏锁定（Godot 出 Web 仅支持 Compatibility）；纯 2D 项目无 Mobile 渲染器依赖
+; Web 小游戏锁定（Godot 出 Web 仅支持 Compatibility）；纯 2D 项目无 Mobile 渲染器依赖
 renderer/rendering_method="gl_compatibility"
