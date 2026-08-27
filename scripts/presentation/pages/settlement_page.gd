@@ -28,8 +28,17 @@ var _orchestrator: RunFlowOrchestrator = null
 
 
 func _ready() -> void:
+	_apply_styles()
 	settle_button.pressed.connect(_on_settle_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
+
+
+## 统一卡通风样式（PixelUiKit 单一来源；结算为红色主行动）。
+func _apply_styles() -> void:
+	PixelUiKit.style_rect_button(settle_button, PixelUiKit.COL_RED,
+			PixelUiKit.COL_RED_BORDER, 30, Color(1, 0.96, 0.94))
+	PixelUiKit.style_rect_button(back_button, PixelUiKit.COL_CHIP_BG,
+			PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
 
 
 ## 组合根（main.gd）注入编排器。

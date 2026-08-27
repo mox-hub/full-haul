@@ -28,8 +28,17 @@ var _selected_offer := ""
 
 
 func _ready() -> void:
+	_apply_styles()
 	confirm_button.pressed.connect(_on_confirm_button_pressed)
 	cancel_button.pressed.connect(_on_cancel_button_pressed)
+
+
+## 统一卡通风样式（PixelUiKit 单一来源；确认钮为红色主行动）。
+func _apply_styles() -> void:
+	PixelUiKit.style_rect_button(confirm_button, PixelUiKit.COL_RED,
+			PixelUiKit.COL_RED_BORDER, 34, Color(1, 0.96, 0.94))
+	PixelUiKit.style_rect_button(cancel_button, PixelUiKit.COL_CHIP_BG,
+			PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
 
 
 ## 组合根（main.gd）注入编排器与事件总线，并加载档位列表。
@@ -64,6 +73,8 @@ func _rebuild_offers() -> void:
 		var pick := Button.new()
 		pick.text = "选择"
 		pick.custom_minimum_size = Vector2(150, 72)
+		PixelUiKit.style_rect_button(pick, PixelUiKit.COL_GOLD,
+				PixelUiKit.COL_BORDER, 26, PixelUiKit.COL_TEXT)
 		pick.pressed.connect(func(): _on_offer_pressed(id_str))
 		row.add_child(pick)
 		offer_list.add_child(row)

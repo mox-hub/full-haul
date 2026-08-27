@@ -74,21 +74,21 @@ var _base_drag_view := Vector2.ZERO
 @onready var market_button: Button = $%MarketButton
 @onready var tech_button: Button = $%TechButton
 @onready var toast_label: Label = $%ToastLabel
-@onready var warehouse_popup: Control = $%WarehousePopup
-@onready var warehouse_list: VBoxContainer = $%WarehouseList
-@onready var popup_close: Button = $%PopupClose
-@onready var popup_panel: PanelContainer = $%PopupPanel
 @onready var base_area: Control = $BaseArea
 @onready var base_view: Node2D = $BaseArea/BaseView
+
+## 仓库出售弹窗（PopupBase 程序化构建，见 _build_warehouse_popup）
+var warehouse_popup: PopupBase = null
+var warehouse_list: VBoxContainer = null
 
 
 func _ready() -> void:
 	_apply_styles()
 	_build_grids()
+	_build_warehouse_popup()
 	start_button.pressed.connect(_on_start_button_pressed)
 	warehouse_button.pressed.connect(_on_warehouse_button_pressed)
 	backpack_button.pressed.connect(_on_backpack_button_pressed)
-	popup_close.pressed.connect(_on_popup_close_pressed)
 	garden_button.pressed.connect(func(): _on_placeholder_pressed("菜园"))
 	workshop_button.pressed.connect(func(): _on_placeholder_pressed("工坊"))
 	market_button.pressed.connect(func(): _on_placeholder_pressed("市场"))
@@ -117,7 +117,7 @@ func _on_start_button_pressed() -> void:
 
 ## [仓库圆钮] 打开仓库出售弹窗。
 func _on_warehouse_button_pressed() -> void:
-	warehouse_popup.visible = true
+	warehouse_popup.open()
 	_rebuild_warehouse(_warehouse_ids())
 
 
@@ -127,8 +127,18 @@ func _on_backpack_button_pressed() -> void:
 	_show_toast("背包：%s" % _offer_size_text(profile))
 
 
-func _on_popup_close_pressed() -> void:
-	warehouse_popup.visible = false
+## 组装仓库出售弹窗（统一 PopupBase 骨架：标题 + 滚动列表 + 内建关闭）。
+func _build_warehouse_popup() -> void:
+	warehouse_popup = PopupBase.create(Vector2(920, 1160), "仓库（出售换货币）", true)
+	add_child(warehouse_popup)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	warehouse_list = VBoxContainer.new()
+	warehouse_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	warehouse_list.add_theme_constant_override("separation", 12)
+	scroll.add_child(warehouse_list)
+	warehouse_popup.content.add_child(scroll)
 
 
 ## [快捷占位钮] 未开放玩法给轻提示。
@@ -219,7 +229,6 @@ func _rebuild_warehouse(instance_ids: Array) -> void:
 func _make_warehouse_row(instance_id: String) -> Control:
 	var info := _item_info(instance_id)
 	var row := PanelContainer.new()
-	row.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	row.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(PixelUiKit.COL_ROW_BG, PixelUiKit.COL_BORDER))
 	row.custom_minimum_size = Vector2(0, 76)
 	var margin := MarginContainer.new()
@@ -296,19 +305,20 @@ func _show_toast(text: String) -> void:
 			toast_label.visible = false)
 
 
-## ---- 像素风样式（统一管线：PixelUiKit 低分辨率框架 -> 最近邻放大）----
+## ---- 卡通风样式（统一管线：PixelUiKit 扁平圆角面板）----
 
 func _apply_styles() -> void:
-	## HUD：图标与百分比条（像素管线）
+	## HUD：图标与百分比条
 	currency_icon.texture = PixelUiKit.icon_texture("coin")
 	hp_icon.texture = PixelUiKit.icon_texture("heart")
 	o2_icon.texture = PixelUiKit.icon_texture("bubble")
-	for bar in [hp_bar, o2_bar]:
-		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	hp_bar.add_theme_stylebox_override("panel",
-			PixelUiKit.inset_stylebox(Color(0.07, 0.09, 0.12), Color(0.55, 0.22, 0.2)))
+			PixelUiKit.inset_stylebox(Color(0.961, 0.898, 0.882), Color(0.757, 0.325, 0.302)))
 	o2_bar.add_theme_stylebox_override("panel",
-			PixelUiKit.inset_stylebox(Color(0.07, 0.09, 0.12), Color(0.16, 0.42, 0.5)))
+			PixelUiKit.inset_stylebox(Color(0.894, 0.937, 0.965), Color(0.16, 0.52, 0.66)))
+	## 顶条直接压在深色页面背景上，文字用亮色保证可读
+	currency_value.add_theme_color_override("font_color", PixelUiKit.COL_TEXT_BRIGHT)
+	warehouse_badge.add_theme_color_override("font_color", PixelUiKit.COL_TEXT_BRIGHT)
 	## HUD 右上圆形按钮（仓库/背包）
 	warehouse_icon.texture = PixelUiKit.icon_texture("crate")
 	backpack_icon.texture = PixelUiKit.icon_texture("backpack")
@@ -321,12 +331,8 @@ func _apply_styles() -> void:
 				PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
 	PixelUiKit.style_circle_button(start_button, BIG_BUTTON_D,
 			PixelUiKit.COL_RED, PixelUiKit.COL_RED_BORDER, 46, Color(1, 0.96, 0.94))
-	PixelUiKit.style_rect_button(popup_close,
-			PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
-	for panel in [grid_panel, popup_panel]:
-		panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		panel.add_theme_stylebox_override("panel",
-				PixelUiKit.frame_stylebox(PixelUiKit.COL_PANEL, PixelUiKit.COL_BORDER))
+	grid_panel.add_theme_stylebox_override("panel",
+			PixelUiKit.frame_stylebox(PixelUiKit.COL_PANEL, PixelUiKit.COL_BORDER))
 
 
 ## 生成背包/安全箱格阵（示意草图：5 列背包 + 1 列安全箱 × 4 行）。
@@ -339,7 +345,6 @@ func _build_grids() -> void:
 
 func _make_cell(is_safe: bool) -> Control:
 	var cell := Panel.new()
-	cell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	cell.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
 	if is_safe:
 		cell.add_theme_stylebox_override("panel", PixelUiKit.inset_stylebox(PixelUiKit.COL_SAFE_BG, PixelUiKit.COL_SAFE_BORDER))

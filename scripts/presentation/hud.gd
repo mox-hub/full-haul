@@ -39,7 +39,6 @@ func _ready() -> void:
 
 ## 像素风样式（统一管线：PixelUiKit，与首页共用调色板）。
 func _apply_styles() -> void:
-	top_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	top_bar.add_theme_stylebox_override("panel",
 			PixelUiKit.frame_stylebox(PixelUiKit.COL_PANEL, PixelUiKit.COL_BORDER))
 	time_icon.texture = PixelUiKit.icon_texture("hourglass")

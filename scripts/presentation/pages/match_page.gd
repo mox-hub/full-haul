@@ -44,11 +44,12 @@ var _orchestrator: RunFlowOrchestrator = null
 @onready var backpack_grid: GridContainer = $%BackpackGrid
 @onready var safe_grid: GridContainer = $%SafeGrid
 @onready var grid_panel: Panel = $%GridPanel
-@onready var search_popup: Control = $%SearchPopup
-@onready var search_popup_panel: PanelContainer = $%SearchPopupPanel
-@onready var search_title: Label = $%SearchTitle
-@onready var search_grid: GridContainer = $%SearchGrid
-@onready var search_hint: Label = $%SearchHint
+
+## 搜索弹窗（PopupBase 程序化构建，见 _build_search_popup）
+var search_popup: PopupBase = null
+var search_title: Label = null
+var search_grid: GridContainer = null
+var search_hint: Label = null
 
 ## 上帧所见阶段（阶段变化时刷新按钮/容器实体态：RUN_INIT -> IN_RUN_LOCKED
 ## 等转移不发布事件，事件驱动的刷新会错过启用时机，导致局内按钮全禁用）
@@ -62,6 +63,7 @@ var _popup_generation := 0
 func _ready() -> void:
 	_apply_styles()
 	_build_bottom_grids()
+	_build_search_popup()
 	search_button.pressed.connect(_on_search_button_pressed)
 	extract_button.pressed.connect(_on_extract_button_pressed)
 	extract_done_button.pressed.connect(_on_extract_done_button_pressed)
@@ -85,7 +87,8 @@ func setup(bus: IEventBus, orchestrator: RunFlowOrchestrator) -> void:
 func reset_for_new_run() -> void:
 	_last_seen_phase = -1
 	_popup_generation += 1
-	search_popup.visible = false
+	if search_popup != null:
+		search_popup.close()
 	hud.reset_for_new_run()
 	_rebuild_map_containers()
 	_refresh_backpack_grid()
@@ -283,6 +286,31 @@ func _refresh_buttons() -> void:
 
 ## ---- 搜索弹窗（容器内部空间可视化，纯表现层回放）----
 
+## 组装搜索弹窗骨架（PopupBase 单一来源；格子由每次搜索动态填充）。
+func _build_search_popup() -> void:
+	search_popup = PopupBase.create(Vector2(620, 0))
+	add_child(search_popup)
+	search_title = Label.new()
+	search_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	search_title.add_theme_color_override("font_color", PixelUiKit.COL_TEXT)
+	search_title.add_theme_font_size_override("font_size", 28)
+	search_popup.content.add_child(search_title)
+	var wrap := HBoxContainer.new()
+	wrap.alignment = BoxContainer.ALIGNMENT_CENTER
+	search_grid = GridContainer.new()
+	search_grid.columns = 3
+	search_grid.add_theme_constant_override("h_separation", 8)
+	search_grid.add_theme_constant_override("v_separation", 8)
+	wrap.add_child(search_grid)
+	search_popup.content.add_child(wrap)
+	search_hint = Label.new()
+	search_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	search_hint.add_theme_color_override("font_color", PixelUiKit.COL_TEXT_DIM)
+	search_hint.add_theme_font_size_override("font_size", 20)
+	search_hint.text = "搜索中…"
+	search_popup.content.add_child(search_hint)
+
+
 ## 逐格扫描动画 + 品质色揭晓；领域侧在点击瞬间已完成，此处只做视觉回放。
 ## 动画用 Tween（绑定本节点）驱动，代际号保证连续搜索（如测试连发）时
 ## 旧动画余留步骤自动失效。
@@ -304,9 +332,9 @@ func _play_search_popup(entry: Dictionary, result: Dictionary) -> void:
 		cells.append(c)
 	search_title.text = "%s %dx%d" % [str(entry.get("display_name", "容器")), w, h]
 	search_hint.text = "搜索中…"
-	search_popup.visible = true
+	search_popup.open()
 	var plain := PixelUiKit.inset_stylebox(PixelUiKit.COL_CELL_BG, PixelUiKit.COL_CELL_BORDER)
-	var scanning := PixelUiKit.inset_stylebox(Color(0.16, 0.19, 0.26), Color(0.35, 0.4, 0.52))
+	var scanning := PixelUiKit.inset_stylebox(Color(0.85, 0.83, 0.75), Color(0.62, 0.68, 0.78))
 	var tw := create_tween()
 	for i in cells.size():
 		var scan_cell: Panel = cells[i]
@@ -323,7 +351,7 @@ func _play_search_popup(entry: Dictionary, result: Dictionary) -> void:
 	tw.tween_interval(0.9)
 	tw.tween_callback(func():
 		if gen == _popup_generation:
-			search_popup.visible = false
+			search_popup.close()
 	)
 
 
@@ -398,9 +426,8 @@ func _item_info(instance_id: String) -> Dictionary:
 ## ---- 像素风样式（统一管线：PixelUiKit，与首页共用调色板）----
 
 func _apply_styles() -> void:
-	map_area.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	map_area.add_theme_stylebox_override("panel",
-			PixelUiKit.inset_stylebox(Color(0.075, 0.09, 0.125), PixelUiKit.COL_BORDER))
+			PixelUiKit.inset_stylebox(Color(0.906, 0.898, 0.863), PixelUiKit.COL_BORDER))
 	PixelUiKit.style_circle_button(search_button, ACTION_D,
 			PixelUiKit.COL_RED, PixelUiKit.COL_RED_BORDER, 30, Color(1, 0.96, 0.94))
 	PixelUiKit.style_circle_button(extract_button, ACTION_D,
@@ -409,9 +436,5 @@ func _apply_styles() -> void:
 			PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
 	PixelUiKit.style_circle_button(timeout_button, ACTION_D,
 			PixelUiKit.COL_CHIP_BG, PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
-	grid_panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	grid_panel.add_theme_stylebox_override("panel",
-			PixelUiKit.frame_stylebox(PixelUiKit.COL_PANEL, PixelUiKit.COL_BORDER))
-	search_popup_panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	search_popup_panel.add_theme_stylebox_override("panel",
 			PixelUiKit.frame_stylebox(PixelUiKit.COL_PANEL, PixelUiKit.COL_BORDER))
