@@ -69,18 +69,18 @@ V0.1 域清单严格以规范 1.2 强制功能链与 3.1 范围内内容为准�
    │                     │ 选择开始
    │ 加载失败            ▼
    └──→ [ERROR]       [LOADOUT] ──取消──→ [OUT_OF_RUN]
-                         │ 确认并扣款成功
-                         ▼
-                     [RUN_INIT] ──初始化成功──→ [IN_RUN_LOCKED]
-                                                    │ 完成数≥5
-                                                    ▼
-                                            [IN_RUN_EXTRACTABLE] ──开始撤离──→ [EXTRACTING]
-                                                    │ 总时间=0                      │ 撤离读条完成
-                                                    ▼                              ▼
-                                              [RUN_FAILED]                    [RUN_SUCCEEDED]
-                                                    └──────────┬───────────────────┘
-                                                               ▼
-                                                          [SETTLED] ──确认──→ [OUT_OF_RUN]
+						 │ 确认并扣款成功
+						 ▼
+					 [RUN_INIT] ──初始化成功──→ [IN_RUN_LOCKED]
+													│ 完成数≥5
+													▼
+											[IN_RUN_EXTRACTABLE] ──开始撤离──→ [EXTRACTING]
+													│ 总时间=0                      │ 撤离读条完成
+													▼                              ▼
+											  [RUN_FAILED]                    [RUN_SUCCEEDED]
+													└──────────┬───────────────────┘
+															   ▼
+														  [SETTLED] ──确认──→ [OUT_OF_RUN]
 ```
 
 - `BOOT`：加载配置与局外数据；成功→`OUT_OF_RUN`，失败→`ERROR`。
@@ -101,7 +101,7 @@ V0.1 域清单严格以规范 1.2 强制功能链与 3.1 范围内内容为准�
 [UNOPENED] ──首次打开──→ [MASKED] ──开始揭晓──→ [REVEALING] ⇄ [PARTIALLY_REVEALED]
    │                          │                      │              │
    └── 未打开，不得暴露身份      │                      └──逐件揭晓──┘
-                               └── 全部揭晓完成 → [COMPLETED]（首次进入 +1，幂等 INV-06）
+							   └── 全部揭晓完成 → [COMPLETED]（首次进入 +1，幂等 INV-06）
 ```
 
 - `UNOPENED`：容器未打开；不得提前暴露物品身份、品质或价值。
@@ -187,7 +187,7 @@ V0.1 域清单严格以规范 1.2 强制功能链与 3.1 范围内内容为准�
 | ContainerTierConfig | tier、rarityWeights | C1~C5 仅决定产出权重；每件独立抽取；权重合计100%（AC-19） |
 | ContainerType | typeId、displayName、tier、gridWidth、gridHeight、iconId、mapAvailability | 类型与 Tier 分离；GridSize 由类型配置，不由 Tier 推导（INV-15） |
 | SafeContainerConfig | gridWidth=2、gridHeight=2、defaultOwned=true、price=0 | V0.1 测试配置 |
-| VisualConfig | designWidth=1920、designHeight=1080、baseGridCellSize=64、revealFlipDuration=250~400ms、semanticColors | 响应式；品质 HEX 为 TBD |
+| VisualConfig | designWidth=1080、designHeight=1920（竖屏 9:16，2026-08 WORD-26 起生效，本文旧值 1920×1080 横屏已废弃）、baseGridCellSize=64、revealFlipDuration=250~400ms、semanticColors | 响应式（canvas_items+expand）；品质 HEX 见 PixelUiKit.RARITY_COLORS（epic=红色系系有意决策）；渲染器 gl_compatibility + 原生平滑卡通画风为 2026-08-27 视觉升级决策（见 changelog 与 docs/art/art-pipeline.md） |
 
 持久化边界（审核 P1-2）：V0.1 持久化范围 = **同一应用运行周期内**多局正确的局外结果（仓库/货币/背包选择，规范 5.5、INV-14）；跨重启持久化范围、存储位置与迁移策略按 TBD-12 待产品决策，不在 V0.1 承诺内。Warehouse/Loadout 由 Profile/Warehouse/Transaction 域承载，不再依赖模糊的「Save(局外成长)」声明。
 

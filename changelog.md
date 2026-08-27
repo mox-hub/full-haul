@@ -12,12 +12,11 @@
 
 ### 变更
 
+- 首页仓库场景 WarehouseView 替换像素基地 BaseView（仓库基地视觉升级 M3）：「底图 plate + 叠层物 props」组装——整间房间为底图贴图，货架/卷帘门/地堆木箱等为可点击叠层物（prop_activated 信号：货架/木箱→仓库弹窗，卷帘门→撤离伏笔提示）；场景世界隔离进 BaseArea 内 SubViewport（Camera2D 进场推拉 1.06→1.0 只作用于场景视口，不污染整页 UI），Parallax2D 前后层微视差；AI 生成资产缺失时按概念图构图程序化占位，资产落盘 assets/art/ 即零改动自动替换；拖动平移由旧 ±110/±70 硬编码参数化映射相机偏移（自动 clamp 到底图边界）；layout 字典驱动 + apply_layout()/current_layout() 为建造模式预留存/载入口（feat/warehouse-base-v1）
 - UI 全面换装扁平卡通风（仓库基地视觉升级 M2）：PixelUiKit 内部从「低分辨率 Image → 最近邻放大 → StyleBoxTexture」整体替换为原生 StyleBoxFlat（圆角面板 + 钢蓝描边 + 柔和落影），调色板对齐仓库概念图（奶油白面板/钢蓝框/警示黄/主行动红/青绿），方法签名与类名不变（调用方零改动）；HUD 图标（货币/生命/氧气/仓库/背包/沙漏）改为 96×96 高分程序化卡通绘制；全仓清除控件级 TEXTURE_FILTER_NEAREST（场景图标节点同步改 LINEAR，等距基地贴图保留至 M3 替换）（feat/warehouse-base-v1）
 - 抽取统一弹窗骨架 PopupBase（Dim + 居中凸台面板 + 内容区，可选标题/内建关闭钮）：首页仓库出售弹窗与局内搜索弹窗两处手搓同构结构迁移完毕，对应 tscn 子树删除改为程序化构建（feat/warehouse-base-v1）
 - 装载页/结算页接入 PixelUiKit 还清视觉债：确认/取消/选择/结算按钮统一圆角凸台样式（feat/warehouse-base-v1）
 - 对局地图容器区内衬、主页生命/氧气条内衬由深色系改浅色主题配色；主页顶条文字（货币/角标）改暗底亮字保证可读性（feat/warehouse-base-v1）
-
-### 变更（续）
 
 - 渲染器迁移 gl_compatibility（仓库基地视觉升级 M1）：锁定 Web 小游戏方向（Godot 出 Web 仅支持 Compatibility），纯 2D 项目无 Mobile 依赖；project.godot 移除 d3d12 驱动指定，config/features 同步更新；场景资产自此按原生平滑卡通基准使用 LINEAR 过滤（现存像素 NEAREST 节点由后续里程碑统一清理）（feat/warehouse-base-v1）
 - 内嵌中文 OFL 字体 NotoSansSC-Regular 并设为全局默认主题字体（gui/theme/custom_font）：Web 导出无系统字体回退，中文字形必须自带；附 OFL 许可文件（feat/warehouse-base-v1）
@@ -28,6 +27,7 @@
 
 ### 新增
 
+- AI 生图资产生产线（仓库基地视觉升级 M3）：docs/art/art-pipeline.md（等距视角/左上光源/概念图色板 token 的 prompt 模板、目录与命名规范、规格表、整备 checklist、迭代流程）与 tools/asset_check.gd headless 校验工具（命名/尺寸读 WarehouseView.DEFAULT_LAYOUT 单一来源/透明底与裁边/底图不透明/色板偏离度报告，不合格退出码 1 可挂 CI）（feat/warehouse-base-v1）
 - Web 导出 preset（export_presets.cfg，导出路径 build/web/，排除 assets/art/source_raw 原图目录）；本机尚未安装 Godot 导出模板，真实导出冒烟待模板安装后执行（feat/warehouse-base-v1）
 
 ### 工程
