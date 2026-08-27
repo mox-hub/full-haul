@@ -12,9 +12,20 @@
 
 ### 变更
 
+- 渲染器迁移 gl_compatibility（仓库基地视觉升级 M1）：锁定 Web 小游戏方向（Godot 出 Web 仅支持 Compatibility），纯 2D 项目无 Mobile 依赖；project.godot 移除 d3d12 驱动指定，config/features 同步更新；场景资产自此按原生平滑卡通基准使用 LINEAR 过滤（现存像素 NEAREST 节点由后续里程碑统一清理）（feat/warehouse-base-v1）
+- 内嵌中文 OFL 字体 NotoSansSC-Regular 并设为全局默认主题字体（gui/theme/custom_font）：Web 导出无系统字体回退，中文字形必须自带；附 OFL 许可文件（feat/warehouse-base-v1）
+- lobby_preview 工具补拍入场帧：新增 stage0 大厅页截图（lobby_preview_home.png），此前仅覆盖对局后阶段，渲染器迁移回归缺少大厅对照（feat/warehouse-base-v1）
 - WORD-40 局内页面重构（首页同款像素风）：顶部 HUD 改为三属性图标条——本局时间（沙漏+倒计时）/撤离目标（木箱+容器 x/N）/携带数（背包+件数）；撤离读条（金色进度条+剩余秒数）移至地图区底部显示；操作区改三枚圆形像素钮（搜索/撤离/完成，超时调试钮转为隐藏钩子，测试契约节点名不变）；底部新增背包+安全箱格阵（6+1 列×4 行），携带物品按品质色填入背包格；新增搜索弹窗——容器内部空间可视化（如 3x3/4x4 格），逐格扫描动画+品质色揭晓（纯表现层回放，领域侧逻辑不变），地图容器实体沿用可点击按钮契约（`%MapContainers`，完成态「已搜索」标记）（feat/lobby-home-ui）
 - WORD-40 像素 UI 管线共享化：调色板/品质色/按钮与格子样式助手提升至 PixelUiKit 单一来源（epic 品质色对齐示意草图为红色系），首页与局内共用；按钮补充禁用态样式；编排器新增 backpack_item_ids() 只读访问器（局内背包格按放置顺序渲染物品品质）（feat/lobby-home-ui）
 - 合并 bugfix/loadout-container-timer：入场货币校验/地图容器实体/双计时停滞修复（详见该分支条目）（feat/lobby-home-ui）
+
+### 新增
+
+- Web 导出 preset（export_presets.cfg，导出路径 build/web/，排除 assets/art/source_raw 原图目录）；本机尚未安装 Godot 导出模板，真实导出冒烟待模板安装后执行（feat/warehouse-base-v1）
+
+### 工程
+
+- 收编未跟踪的 tests/integration/test_map_containers.gd.uid（Godot 4 uid 文件缺失会丢导入元数据）；.gitignore 排除 AI 生图原图目录 assets/art/source_raw/ 与本地导出产物 build/（feat/warehouse-base-v1）
 
 ### 修复
 

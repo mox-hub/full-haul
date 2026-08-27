@@ -20,6 +20,8 @@ func _on_frame() -> void:
 	var match_page := _main.get_node("UiRoot/MatchPage")
 	match _stage:
 		0:
+			if _frames == 12 and lobby.visible:
+				_save("lobby_preview_home.png")
 			if _frames >= 20 and lobby.visible:
 				(lobby.get_node("%StartButton") as Button).pressed.emit()
 				(loadout.get_node("%ConfirmButton") as Button).pressed.emit()

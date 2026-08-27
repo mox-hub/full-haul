@@ -8,3 +8,11 @@ reports/
 # AI Agent specific ignores
 .opencode/
 .vscode/
+# AI 生图原图（不入包不入库，见 docs/art/art-pipeline.md）
+assets/art/source_raw/
+
+# 本地导出产物
+build/
+
+# ZCode 会话产物
+.zcode/
