@@ -20,6 +20,26 @@ extends GdUnitTestSuite
 
 const MainScene := preload("res://scenes/main.tscn")
 
+## 揭晓时长备份（测试内加速揭晓动画，after_test 恢复）
+var _saved_durations: Dictionary = {}
+
+
+## 加速揭晓动画（须在主场景 boot 之后调用——boot 会重新 load_config 覆盖）。
+func _accelerate_reveals() -> void:
+	var cfg: GameConfig = ConfigLoader.get_config()
+	if cfg == null:
+		return
+	_saved_durations = cfg.rarity_reveal_durations.duplicate()
+	var fast := {}
+	for k in cfg.rarity_reveal_durations:
+		fast[k] = 0.05
+	cfg.rarity_reveal_durations = fast
+
+
+func after_test() -> void:
+	if not _saved_durations.is_empty():
+		ConfigLoader.get_config().rarity_reveal_durations = _saved_durations
+
 
 func _page(main: Node, path: String) -> Control:
 	return main.get_node(path) as Control
@@ -37,6 +57,8 @@ func _orchestrator(main: Node) -> RunFlowOrchestrator:
 func test_map_container_entities_clickable() -> void:
 	var main: Node = auto_free(MainScene.instantiate())
 	add_child(main)
+	## V2 搜索弹窗：容器完成要等逐件揭晓动画跑完；压到 0.05s 让序列亚秒完成
+	_accelerate_reveals()
 
 	var lobby := _page(main, "UiRoot/LobbyPage")
 	var loadout := _page(main, "UiRoot/LoadoutPage")
@@ -62,8 +84,13 @@ func test_map_container_entities_clickable() -> void:
 	var first: Button = containers.get_child(0) as Button
 	assert_that(first.disabled).is_false()
 	first.pressed.emit()
+	## 新流程：点击打开搜索弹窗（蒙版），自动逐件揭晓后容器才完成计数
+	var deadline := Time.get_ticks_msec() + 8000
+	while Time.get_ticks_msec() < deadline and orch.completed_container_count() < 1:
+		await get_tree().process_frame
 	assert_that(orch.completed_container_count()).is_equal(1)
-	assert_that(orch.carried_item_count()).is_equal(1)
+	## 揭晓 ≠ 搬运：未拖拽入背包/安全箱前不携带（V2 分步语义）
+	assert_that(orch.carried_item_count()).is_equal(0)
 
 	## 已完成的容器按钮被禁用并标记（不重复搜索，INV-06）
 	assert_that(first.disabled).is_true()

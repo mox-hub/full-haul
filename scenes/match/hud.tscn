@@ -44,7 +44,7 @@ texture_filter = 2
 
 [node name="MatchTimeLabel" type="Label" parent="TopBar/Bar/TimeBox"]
 unique_name_in_owner = true
-theme_override_colors/font_color = Color(0.91, 0.925, 0.957, 1)
+theme_override_colors/font_color = Color(0.165, 0.2, 0.282, 1)
 theme_override_font_sizes/font_size = 30
 text = "本局剩余时间：--"
 vertical_alignment = 1
@@ -61,7 +61,7 @@ texture_filter = 2
 
 [node name="ObjectiveLabel" type="Label" parent="TopBar/Bar/ObjectiveBox"]
 unique_name_in_owner = true
-theme_override_colors/font_color = Color(0.91, 0.925, 0.957, 1)
+theme_override_colors/font_color = Color(0.165, 0.2, 0.282, 1)
 theme_override_font_sizes/font_size = 30
 text = "容器 0/5（锁定）"
 vertical_alignment = 1
@@ -78,7 +78,7 @@ texture_filter = 2
 
 [node name="BackpackLabel" type="Label" parent="TopBar/Bar/CarryBox"]
 unique_name_in_owner = true
-theme_override_colors/font_color = Color(0.91, 0.925, 0.957, 1)
+theme_override_colors/font_color = Color(0.165, 0.2, 0.282, 1)
 theme_override_font_sizes/font_size = 30
 text = "携带 0 件"
 vertical_alignment = 1

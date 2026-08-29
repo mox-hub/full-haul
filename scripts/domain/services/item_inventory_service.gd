@@ -86,6 +86,11 @@ func setup_safe(grid_width: int, grid_height: int) -> bool:
 	return _setup_grid(GridInventory.OwnerType.SAFE, "safe", grid_width, grid_height)
 
 
+## 建立仓库格子（局外储物空间；位置为运行时状态，跨重启按入库顺序重排）。
+func setup_warehouse(grid_width: int, grid_height: int) -> bool:
+	return _setup_grid(GridInventory.OwnerType.WAREHOUSE, "warehouse", grid_width, grid_height)
+
+
 func _setup_grid(owner: GridInventory.OwnerType, inventory_id: String,
 		grid_width: int, grid_height: int) -> bool:
 	if grid_width <= 0 or grid_height <= 0:
@@ -216,10 +221,10 @@ func _size_for_orientation(definition_id: String, orientation: int) -> Vector2i:
 
 func _owner_from_location(location: ItemInstance.Location) -> GridInventory.OwnerType:
 	match location:
-		ItemInstance.Location.BACKPACK:
-			return GridInventory.OwnerType.BACKPACK
 		ItemInstance.Location.SAFE:
 			return GridInventory.OwnerType.SAFE
+		ItemInstance.Location.WAREHOUSE:
+			return GridInventory.OwnerType.WAREHOUSE
 		_:
 			return GridInventory.OwnerType.BACKPACK
 
@@ -228,6 +233,8 @@ func _location_from_owner(owner: GridInventory.OwnerType) -> ItemInstance.Locati
 	match owner:
 		GridInventory.OwnerType.SAFE:
 			return ItemInstance.Location.SAFE
+		GridInventory.OwnerType.WAREHOUSE:
+			return ItemInstance.Location.WAREHOUSE
 		_:
 			return ItemInstance.Location.BACKPACK
 

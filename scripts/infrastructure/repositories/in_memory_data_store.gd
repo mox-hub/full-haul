@@ -56,9 +56,21 @@ func seed_v01_defaults() -> void:
 			"item_techchip": {"definition_id": "item_techchip", "category": "collectible",
 				"name": "科技芯片", "rarity": "rare", "width": 1, "height": 1,
 				"value": 300, "color_semantic": "blue"},
+			"item_scifi_pistol": {"definition_id": "item_scifi_pistol", "category": "item",
+				"name": "科幻手枪", "rarity": "rare", "width": 2, "height": 1,
+				"value": 350, "color_semantic": "gray"},
 			"item_goldenidol": {"definition_id": "item_goldenidol", "category": "collectible",
 				"name": "金像", "rarity": "epic", "width": 2, "height": 2,
 				"value": 900, "color_semantic": "gold"},
+			"item_waterbottle": {"definition_id": "item_waterbottle", "category": "item",
+				"name": "净水壶", "rarity": "uncommon", "width": 1, "height": 2,
+				"value": 90, "color_semantic": "cyan"},
+			"item_rifle": {"definition_id": "item_rifle", "category": "item",
+				"name": "突击步枪", "rarity": "rare", "width": 2, "height": 3,
+				"value": 600, "color_semantic": "gray"},
+			"item_ammobox": {"definition_id": "item_ammobox", "category": "item",
+				"name": "重型弹药箱", "rarity": "epic", "width": 3, "height": 3,
+				"value": 1100, "color_semantic": "red"},
 		}
 	if container_types.is_empty():
 		container_types = {

@@ -87,13 +87,21 @@ func test_mask_no_leak() -> void:
 	assert_that(csm.item_count).is_equal(2)
 
 
-## [ContainerSearchStateMachine] MASKED 遮罩态只含数量与同尺寸占格（INV-05/AC-18）
-func test_masked_shapes_uniform() -> void:
+## [ContainerSearchStateMachine] MASKED 遮罩态只含数量与占格形状（INV-05/AC-18）：
+## 未提供尺寸回退 1x1；提供尺寸按真实占格形状呈现（只露形状不露身份）
+func test_masked_shapes_use_sizes() -> void:
 	var bus := _FakeEventBus.new()
 	var csm := ContainerSearchStateMachine.new("c-4", bus, null)
 	csm.open(4)
 	assert_that(csm.item_count).is_equal(4)
-	## 遮罩形状一律 1x1 同尺寸，不泄露身份/形状差异（INV-05）
+	## 未提供尺寸：遮罩形状回退 1x1（INV-05 计数语义）
+	assert_that(csm._build_masked_shapes(2)).is_equal([Vector2i.ONE, Vector2i.ONE])
+	## 提供尺寸：遮罩按真实占格形状（多格物品露形状不露身份）
+	assert_that(csm._build_masked_shapes(3, [Vector2i(2, 1), Vector2i.ONE, Vector2i(3, 3)])) \
+		.is_equal([Vector2i(2, 1), Vector2i.ONE, Vector2i(3, 3)])
+	## 尺寸缺位/类型异常的条目回退 1x1
+	assert_that(csm._build_masked_shapes(3, [Vector2i(2, 2), "bad"])) \
+		.is_equal([Vector2i(2, 2), Vector2i.ONE, Vector2i.ONE])
 	assert_that(csm.phase).is_equal(ContainerSearchStateMachine.Phase.MASKED)
 
 

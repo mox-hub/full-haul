@@ -60,11 +60,17 @@ func test_full_mandatory_chain_loop() -> void:
 	assert_that(match_page.visible).is_true()
 	assert_that(_orchestrator(main).current_profile().currency).is_equal(97500)
 
-	## —— 搜刮 + 携带：5 个容器，每搜索一个即携带产出入背包 ——
-	for i in 5:
-		_button(match_page, "SearchButton").pressed.emit()
+	## —— 搜刮 + 携带：5 个容器（V2 搜索弹窗为分步揭晓+手动搬运，本用例
+	## 主旨在结算/仓库/出售链，故走同步兼容用例 search_and_carry）——
+	for entry in _orchestrator(main).match_containers():
+		var result := _orchestrator(main).search_and_carry_container(
+			str(entry.get("container_id", "")))
+		if int(result.get("completed_count", 0)) >= 5:
+			break
 	assert_that(_button(match_page, "ExtractButton").disabled).is_false()  # INV-07 解锁
-	assert_that(_orchestrator(main).carried_item_count()).is_equal(5)
+	## V2 容器多件化：5 容器产出 > 背包容量，装得下几件带几件（至少 1 件闭环）
+	var carried := _orchestrator(main).carried_item_count()
+	assert_that(carried).is_greater_equal(1)
 
 	## —— 撤离成功 ——
 	_button(match_page, "ExtractButton").pressed.emit()
@@ -77,7 +83,7 @@ func test_full_mandatory_chain_loop() -> void:
 	_button(settlement, "BackButton").pressed.emit()
 	assert_that(lobby.visible).is_true()
 	var profile := _orchestrator(main).current_profile()
-	assert_that(profile.warehouse_item_ids.size()).is_equal(5)
+	assert_that(profile.warehouse_item_ids.size()).is_equal(carried)
 
 	## —— 出售：局外出售仓库物品，货币增加（INV-12） ——
 	var currency_before := profile.currency
@@ -97,5 +103,5 @@ func test_full_mandatory_chain_loop() -> void:
 	assert_that(telemetry.count(DomainEvents.Events.EXTRACT_STARTED)).is_equal(1)
 	assert_that(telemetry.count(DomainEvents.Events.RUN_SUCCEEDED)).is_equal(1)
 	assert_that(telemetry.count(DomainEvents.Events.RUN_SETTLED)).is_equal(1)
-	assert_that(telemetry.count(DomainEvents.Events.WAREHOUSE_ITEM_ADDED)).is_equal(5)
+	assert_that(telemetry.count(DomainEvents.Events.WAREHOUSE_ITEM_ADDED)).is_equal(carried)
 	assert_that(telemetry.count(DomainEvents.Events.ITEM_SOLD)).is_equal(1)

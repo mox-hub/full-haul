@@ -23,6 +23,7 @@ var _orchestrator: RunFlowOrchestrator = null
 @onready var result_label: Label = $%ResultLabel
 @onready var result_block: ColorRect = $%ResultBlock
 @onready var detail_label: Label = $%DetailLabel
+@onready var items_grid: GridContainer = $%ItemsGrid
 @onready var settle_button: Button = $%SettleButton
 @onready var back_button: Button = $%BackButton
 
@@ -52,20 +53,22 @@ func show_success(payload: RefCounted) -> void:
 	result_label.text = "撤离成功"
 	result_block.color = Color(0.2, 0.7, 0.3)
 	if evt != null:
-		detail_label.text = "对局：%s\n携带带出物品 %d 件：%s" % [
-			evt.run_id, evt.carried_item_ids.size(), _format_ids(evt.carried_item_ids)]
+		detail_label.text = "对局：%s\n携带带出物品 %d 件" % [
+			evt.run_id, evt.carried_item_ids.size()]
+		_render_returned_items(evt.carried_item_ids)
 	settle_button.disabled = false
 	back_button.disabled = true
 
 
-## [RUN_FAILED] 展示撤离失败（INV-11）。
+## [RUN_FAILED] 展示撤离失败（INV-11，仅安全箱物品可带出）。
 func show_failure(payload: RefCounted) -> void:
 	var evt := payload as DomainEvents.RunFailed
 	result_label.text = "撤离失败（本局时间耗尽）"
 	result_block.color = Color(0.8, 0.25, 0.25)
 	if evt != null:
-		detail_label.text = "对局：%s\n安全箱返回物品 %d 件：%s" % [
-			evt.run_id, evt.safe_item_ids.size(), _format_ids(evt.safe_item_ids)]
+		detail_label.text = "对局：%s\n安全箱返回物品 %d 件" % [
+			evt.run_id, evt.safe_item_ids.size()]
+		_render_returned_items(evt.safe_item_ids)
 	settle_button.disabled = false
 	back_button.disabled = true
 
@@ -91,8 +94,57 @@ func _on_back_button_pressed() -> void:
 	_orchestrator.confirm_settled()
 
 
-## 物品 id 列表展示（空列表显示占位说明）。
-func _format_ids(ids: Array) -> String:
+## 带出物品格子清单：所有物品单格展示（品质色框 + 名称/价值），
+## 超出一屏经 ItemsScroll 滚动。展示信息经编排器只读查询物品定义
+## （结算前后实例都在 item_inventory 账本里，实例 id 不变）。
+func _render_returned_items(ids: Array) -> void:
+	for child in items_grid.get_children():
+		items_grid.remove_child(child)
+		child.queue_free()
 	if ids.is_empty():
-		return "（本局未携带/未返回物品）"
-	return "、".join(ids.map(func(id): return str(id)))
+		var empty := Label.new()
+		empty.text = "（本局未携带/未返回物品）"
+		empty.add_theme_color_override("font_color", PixelUiKit.COL_TEXT_DIM)
+		empty.add_theme_font_size_override("font_size", 24)
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.custom_minimum_size = Vector2(0, 80)
+		items_grid.add_child(empty)
+		return
+	for instance_id in ids:
+		var info := _item_info(str(instance_id))
+		var color: Color = PixelUiKit.RARITY_COLORS.get(info.rarity, PixelUiKit.COL_TEXT_DIM)
+		var cell := Panel.new()
+		cell.custom_minimum_size = Vector2(196, 112)
+		## 浅底 + 品质色描边：深色品质底上深字可读性差
+		cell.add_theme_stylebox_override("panel",
+				PixelUiKit.inset_stylebox(Color(0.93, 0.92, 0.88), color))
+		var label := Label.new()
+		label.text = "%s\n价值 %d" % [info.name, info.value]
+		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_color_override("font_color", PixelUiKit.COL_TEXT)
+		label.add_theme_font_size_override("font_size", 22)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(label)
+		items_grid.add_child(cell)
+
+
+## 查询物品展示信息（名称/价值/品质；查不到回退 instanceId）。
+func _item_info(instance_id: String) -> Dictionary:
+	var info := {"name": instance_id, "value": 0, "rarity": ""}
+	if _orchestrator == null:
+		return info
+	var inv := _orchestrator.item_inventory()
+	if inv == null:
+		return info
+	var item := inv.get_item(instance_id)
+	if item == null:
+		return info
+	var def := inv.get_definition(item.definition_id)
+	if def == null:
+		return info
+	info.name = def.name
+	info.value = def.value
+	info.rarity = def.rarity
+	return info

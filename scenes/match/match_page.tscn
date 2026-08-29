@@ -37,7 +37,7 @@ theme_override_colors/font_color = Color(0.604, 0.647, 0.741, 1)
 theme_override_font_sizes/font_size = 20
 text = "对局场景——点击容器进行搜索"
 
-[node name="MapContainers" type="GridContainer" parent="MapArea"]
+[node name="MapScroll" type="ScrollContainer" parent="MapArea"]
 unique_name_in_owner = true
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -45,6 +45,11 @@ offset_left = 40.0
 offset_top = 64.0
 offset_right = -40.0
 offset_bottom = -40.0
+horizontal_scroll_mode = 0
+
+[node name="MapContainers" type="GridContainer" parent="MapArea/MapScroll"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 24
 theme_override_constants/v_separation = 24
 columns = 2
@@ -110,24 +115,25 @@ theme_override_font_sizes/font_size = 24
 text = "安全箱"
 horizontal_alignment = 1
 
-[node name="GridRow" type="HBoxContainer" parent="GridPanel"]
+[node name="GridScroll" type="ScrollContainer" parent="GridPanel"]
+unique_name_in_owner = true
 anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
 offset_top = 50.0
-offset_bottom = 586.0
+offset_right = -24.0
+offset_bottom = -16.0
+
+[node name="GridRow" type="HBoxContainer" parent="GridPanel/GridScroll"]
+size_flags_horizontal = 3
 theme_override_constants/separation = 24
 alignment = 1
 
-[node name="BackpackGrid" type="GridContainer" parent="GridPanel/GridRow"]
+[node name="BackpackGrid" type="Control" parent="GridPanel/GridScroll/GridRow"]
 unique_name_in_owner = true
-columns = 6
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
 
-[node name="SafeGrid" type="GridContainer" parent="GridPanel/GridRow"]
+[node name="SafeGrid" type="Control" parent="GridPanel/GridScroll/GridRow"]
 unique_name_in_owner = true
-columns = 1
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
 
 [node name="Hud" parent="." instance=ExtResource("2_hud")]
 unique_name_in_owner = true

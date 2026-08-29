@@ -234,3 +234,145 @@ func test_fallback_without_container_search_service() -> void:
 	assert_that(orch.complete_reveal("c-1", "i-1", "def-1", "common", 10, Vector2i.ONE)).is_false()
 	## 既有占位流程不受影响
 	assert_that(orch.complete_container_placeholder()).is_equal(1)
+
+
+## ---- 搜索弹窗分步流程（蒙版 -> 按品质揭晓 -> 手动搬运，V2）----
+
+## 组装带 Loot/Container + Item/Inventory 域的编排器（分步流程被测主体）。
+class _SeedStore:
+	extends InMemoryDataStore
+
+	func _init() -> void:
+		seed_v01_defaults()
+
+
+func _stepwise_orchestrator() -> Dictionary:
+	var bus := _LocalBusAdapter.new(_bus)
+	var store := _InMemoryStateStore.new()
+	var run_session := RunSessionService.new(store, bus, _FakeConfigLoader.new())
+	var container_search := ContainerSearchService.new(bus, _FakeConfigLoader.new())
+	var item_inventory := ItemInventoryService.new(
+		MemoryConfigDataRepository.new(_SeedStore.new()), bus)
+	item_inventory.setup_backpack(6, 4)
+	item_inventory.setup_safe(2, 2)
+	var orch := RunFlowOrchestrator.new(bus, store, _FakeConfigLoader.new(),
+		null, null, run_session, item_inventory, container_search)
+	return {"orch": orch, "item_inventory": item_inventory, "store": store}
+
+
+## [Wiring] 打开容器计划：返回蒙版块（位置+尺寸），不泄露物品身份（INV-05）
+func test_container_plan_masks_identity() -> void:
+	var parts := _stepwise_orchestrator()
+	var orch: RunFlowOrchestrator = parts["orch"]
+	_enter_run(orch)
+
+	var plan := orch.container_search_plan("map-c-01")
+	assert_that(plan.is_empty()).is_false()
+	assert_that(int(plan.get("item_count", 0))).is_greater_equal(1)
+	var blocks: Array = plan.get("blocks", [])
+	assert_that(blocks.size()).is_equal(int(plan.get("item_count", 0)))
+	for b: Dictionary in blocks:
+		## 摘要只含位置/尺寸/已揭晓标记，不含身份字段
+		assert_that(b.has("pos")).is_true()
+		assert_that(b.has("size")).is_true()
+		assert_that(b.has("definition_id")).is_false()
+		assert_that(b.has("rarity")).is_false()
+		assert_that(bool(b.get("revealed", true))).is_false()
+	## 重复打开返回同一计划（内容不重置）
+	var again := orch.container_search_plan("map-c-01")
+	assert_that(again.get("instance_ids", [])).is_equal(plan.get("instance_ids", []))
+
+
+## [Wiring] 揭晓分步：reveal 返回品质与耗时（转速依据）；finish 揭晓身份并
+## 推进完成计数；stow 搬运入背包/安全箱（搬运前实例不落地）
+func test_reveal_finish_stow_flow() -> void:
+	var parts := _stepwise_orchestrator()
+	var orch: RunFlowOrchestrator = parts["orch"]
+	var inv: ItemInventoryService = parts["item_inventory"]
+	_enter_run(orch)
+
+	var plan := orch.container_search_plan("map-c-01")
+	var ids: Array = plan.get("instance_ids", [])
+	var instance_id := str(ids[0])
+
+	## 蒙版阶段实例不存在（未搬运不落地）
+	assert_that(inv.get_item(instance_id)).is_null()
+
+	var revealed := orch.reveal_container_item("map-c-01", instance_id)
+	assert_that(revealed.is_empty()).is_false()
+	assert_that(str(revealed.get("rarity", ""))).is_not_equal("")
+	assert_that(float(revealed.get("wait_time", 0.0))).is_greater(0.0)
+
+	var info := orch.finish_reveal_container_item("map-c-01", instance_id)
+	assert_that(str(info.get("definition_id", ""))).is_not_equal("")
+	## 揭晓完成但未搬运：仍不落地
+	assert_that(inv.get_item(instance_id)).is_null()
+
+	## 揭晓剩余物品使容器完成（INV-06：全部揭晓后才计完成数）
+	for i in range(1, ids.size()):
+		var rid := str(ids[i])
+		assert_that(orch.reveal_container_item("map-c-01", rid).is_empty()).is_false()
+		assert_that(orch.finish_reveal_container_item("map-c-01", rid).is_empty()).is_false()
+	assert_that(orch.container_search().completed_container_count()).is_equal(1)
+
+	## 搬运入背包 (0,0)：落实例并占格
+	assert_that(orch.stow_revealed_item(instance_id,
+			GridInventory.OwnerType.BACKPACK, Vector2i.ZERO)).is_true()
+	var item: ItemInstance = inv.get_item(instance_id)
+	assert_that(item).is_not_null()
+	assert_that(item.location).is_equal(ItemInstance.Location.BACKPACK)
+	var bp: GridInventory = inv.get_grid(GridInventory.OwnerType.BACKPACK)
+	assert_that(bp.has(instance_id)).is_true()
+
+	## 再搬运入安全箱（跨格移动）：背包腾出、安全箱占格
+	var safe_at := Vector2i(1, 1)
+	assert_that(orch.stow_revealed_item(instance_id,
+			GridInventory.OwnerType.SAFE, safe_at)).is_true()
+	assert_that(bp.has(instance_id)).is_false()
+	var safe_grid: GridInventory = inv.get_grid(GridInventory.OwnerType.SAFE)
+	assert_that(safe_grid.position_of(instance_id)).is_equal(safe_at)
+
+
+## [Wiring] 仓库格子：结算入库摆位（first-fit）+ 拖拽重排 + 未知实例 1x1 占位
+func test_warehouse_grid_placement() -> void:
+	var parts := _stepwise_orchestrator()
+	var orch: RunFlowOrchestrator = parts["orch"]
+	var inv: ItemInventoryService = parts["item_inventory"]
+	inv.setup_warehouse(8, 6)
+	_enter_run(orch)
+
+	## 未知实例（账本直登记、无实体）：给 1x1 坐标但不落实体
+	var ghost_at := orch.ensure_warehouse_placement("ghost-item")
+	assert_that(ghost_at).is_equal(Vector2i.ZERO)
+	assert_that(inv.get_item("ghost-item")).is_null()
+
+	## 真实例（3x3 弹药箱）入库：占据 first-fit 空位且不与占位块重叠
+	assert_that(inv.create_item("wh-ammobox", "item_ammobox")).is_not_null()
+	var at := orch.ensure_warehouse_placement("wh-ammobox")
+	assert_that(at != Vector2i(-1, -1)).is_true()
+	var wh: GridInventory = inv.get_grid(GridInventory.OwnerType.WAREHOUSE)
+	assert_that(wh.size_of("wh-ammobox")).is_equal(Vector2i(3, 3))
+
+	## 拖拽重排到空角（INV-04 校验）
+	assert_that(orch.move_warehouse_item("wh-ammobox", Vector2i(5, 3))).is_true()
+	assert_that(wh.position_of("wh-ammobox")).is_equal(Vector2i(5, 3))
+	## 非法位置保持原位
+	assert_that(orch.move_warehouse_item("wh-ammobox", Vector2i(7, 5))).is_false()
+	assert_that(wh.position_of("wh-ammobox")).is_equal(Vector2i(5, 3))
+
+
+## [Wiring] 旧用例兼容：search_and_carry_container 多件流程一次完成
+## （打开+逐件揭晓+自动携带，返回契约不变）
+func test_search_and_carry_multi_item_compat() -> void:
+	var parts := _stepwise_orchestrator()
+	var orch: RunFlowOrchestrator = parts["orch"]
+	var inv: ItemInventoryService = parts["item_inventory"]
+	inv.setup_warehouse(8, 6)
+	_enter_run(orch)
+
+	var result := orch.search_and_carry_container("map-c-01")
+	assert_that(int(result.get("completed_count", 0))).is_equal(1)
+	assert_that(int(result.get("carried_count", 0))).is_greater_equal(1)
+	## 重复搜索同一容器幂等（INV-06）
+	var again := orch.search_and_carry_container("map-c-01")
+	assert_that(int(again.get("carried_count", -1))).is_equal(0)

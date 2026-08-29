@@ -12,7 +12,7 @@
 ##
 ## 关键约束：
 ##   - INV-05：UNOPENED 容器不得提前暴露物品身份/品质/价值；MASKED 只显示
-##     物品总数与每件物品当前方向完整占格（同尺寸视觉一致，禁止剪影/造型
+##     物品总数与每件物品当前方向完整占格（真实 w×h 形状，禁止剪影/造型
 ##     蒙版），不得泄露身份/类别/品质/价值；未开始揭晓（MASKED）不得完成揭晓。
 ##   - INV-06：COMPLETED 首次进入时完成容器计数 +1；同一容器不重复计数（幂等）。
 ##
@@ -75,15 +75,17 @@ func _init(p_container_id := "", bus: IEventBus = null, config_loader: IConfigLo
 ## 首次打开容器 -> MASKED（INV-05）。
 ## item_count 为容器内物品总数（遮罩态显示）；p_instance_ids 为容器内物品
 ## 实例 id 列表（可选）：提供时以实例数为准，保证遮罩计数与最终揭晓一致。
+## p_sizes 为各物品当前朝向占格尺寸（可选，逐件 Vector2i；不足/缺省回退
+## 1x1）：遮罩按真实占格形状呈现（INV-05「完整占格」，只露形状不露身份）。
 ## 已打开过返回 false（重复打开忽略）。
-func open(p_item_count: int, p_instance_ids: Array = []) -> bool:
+func open(p_item_count: int, p_instance_ids: Array = [], p_sizes: Array = []) -> bool:
 	if phase != Phase.UNOPENED:
 		return false
 	item_instance_ids = p_instance_ids.duplicate()
 	item_count = item_instance_ids.size() if not item_instance_ids.is_empty() else p_item_count
 	phase = Phase.MASKED
 	if _bus != null:
-		var shapes := _build_masked_shapes(item_count)
+		var shapes := _build_masked_shapes(item_count, p_sizes)
 		_bus.publish(DomainEvents.Events.CONTAINER_OPENED,
 			DomainEvents.ContainerOpened.new(container_id, item_count, shapes))
 	return true
@@ -147,18 +149,23 @@ func is_completed() -> bool:
 	return phase == Phase.COMPLETED
 
 
+## 某实例是否已揭晓完成（供计划摘要标注，表现层重开弹窗时跳过重转）。
+func is_instance_revealed(instance_id: String) -> bool:
+	return _revealed_instances.has(instance_id)
+
+
 ## 是否首次完成（用于状态机内部/测试断言：counted 只置位一次）。
 func was_counted() -> bool:
 	return counted
 
 
-## 构建遮罩态的占格形状列表（INV-05：只含数量与形状，不含身份/品质/价值）。
-## 说明：V0.1 阶段形状统一以 1x1 占位；具体物品形状由 Item&Inventory
-## 切片提供，此处仅保证「遮罩计数」语义成立。
-func _build_masked_shapes(count: int) -> Array:
+## 构建遮罩态的占格形状列表（INV-05：只含数量与占格形状，不含身份/品质/价值）。
+## sizes 提供时逐件使用真实占格尺寸（多格物品露形状不露身份）；缺位回退 1x1。
+func _build_masked_shapes(count: int, sizes: Array = []) -> Array:
 	var shapes: Array = []
 	for i in count:
-		shapes.append(Vector2i.ONE)
+		var s: Vector2i = sizes[i] if i < sizes.size() and sizes[i] is Vector2i else Vector2i.ONE
+		shapes.append(s)
 	return shapes
 
 

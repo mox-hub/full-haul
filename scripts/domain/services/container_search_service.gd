@@ -48,11 +48,13 @@ func register_container(container_id: String, type_id: String = "") -> bool:
 
 
 ## 打开一个容器进入搜索（INV-05）。未登记容器时自动登记。
-func open_container(container_id: String, item_count: int, item_instance_ids: Array = []) -> bool:
+## item_sizes 为各物品占格尺寸（可选，蒙版按真实形状呈现）。
+func open_container(container_id: String, item_count: int, item_instance_ids: Array = [],
+		item_sizes: Array = []) -> bool:
 	var csm := _ensure_container(container_id)
 	if csm == null:
 		return false
-	return csm.open(item_count, item_instance_ids)
+	return csm.open(item_count, item_instance_ids, item_sizes)
 
 
 ## 开始揭晓容器内下一件物品（品质决定耗时）。
