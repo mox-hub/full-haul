@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dxksnjt3nqxoa"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_0xcba"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_lh6gp"]
+
+[resource]
+script = ExtResource("1_lh6gp")
+item_id = "0129"
+display_name = "保温杯"
+category = 6
+rarity = 1
+base_value = 3128
+grid_size = Vector2i(1, 2)
+boundary_note = "本品质最低"
+description = "这是一个保温杯，它的品质是蓝。"
+model = ExtResource("1_0xcba")
+model_scale = 1.3

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ContainerData" format=3 uid="uid://cmqvglftap8sy"]
+
+[ext_resource type="Script" path="res://data/containers/container_data.gd" id="1_f5k20"]
+
+[resource]
+script = ExtResource("1_f5k20")
+container_id = "tool_locker"
+display_name = "工具壁柜"
+tier = "C2"
+grid_size = Vector2i(4, 2)
+rarity_weights = {
+"common": 45,
+"epic": 6,
+"legendary": 1,
+"rare": 18,
+"uncommon": 30
+}
+category_weights = {
+"electronics": 2.0,
+"material": 6.0,
+"tool": 8.0
+}

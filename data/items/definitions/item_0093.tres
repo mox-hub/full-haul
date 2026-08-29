@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://7j8euirfd18l"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_ko6w8"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_mbhof"]
+
+[resource]
+script = ExtResource("1_ko6w8")
+item_id = "0093"
+display_name = "酒精棉片"
+category = 4
+base_value = 82
+description = "这是一个酒精棉片，它的品质是白。"
+model = ExtResource("1_mbhof")

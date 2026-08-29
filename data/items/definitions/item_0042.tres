@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dpny73w64a5n4"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_4vcxl"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_432kl"]
+
+[resource]
+script = ExtResource("1_432kl")
+item_id = "0042"
+display_name = "固态硬盘"
+category = 2
+rarity = 2
+base_value = 36427
+description = "这是一个固态硬盘，它的品质是紫。"
+model = ExtResource("1_4vcxl")

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bh23s648shox"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_4atui"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_u3ue8"]
+
+[resource]
+script = ExtResource("1_u3ue8")
+item_id = "0142"
+display_name = "废塑料"
+base_value = 83
+description = "这是一个废塑料，它的品质是白。"
+model = ExtResource("1_4atui")

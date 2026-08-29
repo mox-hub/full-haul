@@ -40,9 +40,19 @@ func _init(config_repo, bus: IEventBus) -> void:
 
 
 ## 从配置仓储加载物品定义（INV-16 单一来源；非法定义跳过）。
+## 优先 Resource 化数据源（load_item_data -> ItemData.tres 注册态）；
+## 不可用时回退字典配置（sqlite 行 / 测试桩，from_config）。
 func _load_definitions() -> void:
 	if _config_repo == null:
 		return
+	if _config_repo.has_method("load_item_data"):
+		var data_dict: Dictionary = _config_repo.load_item_data()
+		if not data_dict.is_empty():
+			for key in data_dict:
+				var def := ItemDefinition.from_resource(data_dict[key])
+				if def != null:
+					_definitions[def.definition_id] = def
+			return
 	var raw: Dictionary = _config_repo.load_item_definitions()
 	for key in raw:
 		var def := ItemDefinition.from_config(raw[key])

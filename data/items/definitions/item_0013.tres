@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://e5lntxweburo"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_pe1qm"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_woo82"]
+
+[resource]
+script = ExtResource("1_woo82")
+item_id = "0013"
+display_name = "手摇留声机"
+category = 0
+rarity = 2
+base_value = 31119
+grid_size = Vector2i(2, 2)
+description = "这是一个手摇留声机，它的品质是紫。"
+model = ExtResource("1_pe1qm")
+model_scale = 1.7

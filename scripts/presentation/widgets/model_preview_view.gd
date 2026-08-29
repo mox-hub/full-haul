@@ -4,22 +4,24 @@
 ##   在 2D UI 内嵌一个小型 3D 视口展示物品模型（项目首个 3D 用例）：
 ##   - 独立 World3D + 透明背景，可直接叠进仓库行 / 背包格
 ##   - 按网格 AABB 自动取景（斜 3/4 视角，长轴自动放平），可选慢速自转
-##   - 定义→模型路径映射暂收编于此（表现层映射；3D 管线验证后再考虑
-##     提升为 ItemDefinition 正式字段）
-##   - 无映射（或加载失败）的定义回退品质色 1m 正方体占位；真模型落盘
-##     后在 ITEM_MODEL_PATHS 登记即自动替换
+##   - 模型解析：物品注册态绑定（ItemData.model，经组合根注入的解析器
+##     读取，缩放应用 model_scale）-> ITEM_MODEL_PATHS 路径映射 ->
+##     品质色正方体占位
+##   - 无绑定（或加载失败）的定义回退品质色 1m 正方体占位；资产落盘后
+##     在物品 .tres 绑定 model 字段即自动替换
 ##
 ## 用法：
-##   var view := ModelPreviewView.create("item_scifi_pistol", 56.0)
+##   var view := ModelPreviewView.create("item_0057", 56.0)
 ##   view.clicked.connect(_on_preview_clicked)
 ##   背包格等锚定布局场景：create 后把 custom_minimum_size 清零再用锚点拉伸。
 
 extends SubViewportContainer
 class_name ModelPreviewView
 
-## 物品定义 → 模型资源路径（新增 3D 物品在此登记）
+## 物品定义（物品注册表 string_id）→ 模型资源路径（新增 3D 物品在此登记；
+## 物品种子已 Resource 化，登记键须为注册表真实 item_XXXX）
 const ITEM_MODEL_PATHS := {
-	"item_scifi_pistol": "res://assets/models/han_gun/han_gun.obj",
+	"item_0057": "res://assets/models/han_gun/han_gun.obj",
 }
 
 ## 占位正方体边长（米）：无专属模型的物品统一用它兜底
@@ -40,13 +42,25 @@ signal clicked
 ## OBJ 网格静态缓存（同一模型多处预览共享一次 load）
 static var _mesh_cache: Dictionary = {}
 
-var _pivot: Node3D = null
-var _spin := true
+## 物品 Resource 解析器（组合根注入：definition_id -> ItemData），用于读取
+## 物品注册态绑定的模型（ItemData.model）与缩放（model_scale）。表现层不
+## 直接依赖基础设施目录，经此回调解耦；未注入/查询失败时回退
+## ITEM_MODEL_PATHS 路径映射。
+static var _item_data_resolver: Callable = Callable()
+
+
+## 组合根注入物品 Resource 解析器（definition_id -> ItemData）。
+static func set_item_data_resolver(resolver: Callable) -> void:
+	_item_data_resolver = resolver
 
 
 ## 查询定义是否有 3D 模型；无映射返回空串。
 static func model_path_for(definition_id: String) -> String:
 	return ITEM_MODEL_PATHS.get(definition_id, "")
+
+
+var _pivot: Node3D = null
+var _spin := true
 
 
 ## 创建一份模型预览：view_size 为视口边长（design px），spin 控制自转，
@@ -64,7 +78,16 @@ static func create(definition_id: String, view_size: float, spin := true,
 	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	view.add_child(viewport)
 
-	var mesh: Mesh = view._load_mesh(model_path_for(definition_id))
+	## 模型解析优先级：物品注册态绑定（ItemData.model + model_scale）->
+	## ITEM_MODEL_PATHS 路径映射 -> 品质色正方体占位
+	var mesh: Mesh = _bound_mesh_for(definition_id)
+	var model_scale := 1.0
+	if mesh != null:
+		var data: ItemData = _item_data_for(definition_id)
+		if data != null:
+			model_scale = data.model_scale
+	else:
+		mesh = view._load_mesh(model_path_for(definition_id))
 	var tinted := false
 	if mesh == null:
 		## 无专属模型（或加载失败）→ 品质色正方体占位，取景按其 AABB 照常工作
@@ -73,12 +96,15 @@ static func create(definition_id: String, view_size: float, spin := true,
 		mesh = cube
 		tinted = true
 	var aabb := mesh.get_aabb()
+	aabb.position *= model_scale
+	aabb.size *= model_scale
 
 	var pivot := Node3D.new()
 	viewport.add_child(pivot)
 	view._pivot = pivot
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.mesh = mesh
+	mesh_instance.scale = Vector3.ONE * model_scale
 	if tinted:
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = tint
@@ -138,6 +164,22 @@ static func _load_mesh(path: String) -> Mesh:
 	if not _mesh_cache.has(path):
 		_mesh_cache[path] = load(path)
 	return _mesh_cache.get(path)
+
+
+## 经组合根注入的解析器取物品注册态；未注入/查询失败返回 null。
+static func _item_data_for(definition_id: String) -> ItemData:
+	if not _item_data_resolver.is_valid():
+		return null
+	var resolved: Variant = _item_data_resolver.call(definition_id)
+	return resolved if resolved is ItemData else null
+
+
+## 物品注册态绑定的模型（ItemData.model）；未绑定或解析器缺失返回 null。
+static func _bound_mesh_for(definition_id: String) -> Mesh:
+	var data := _item_data_for(definition_id)
+	if data == null or data.model == null:
+		return null
+	return data.model
 
 
 func _process(delta: float) -> void:

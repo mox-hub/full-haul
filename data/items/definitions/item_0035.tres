@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c84lghvfmvshp"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_j1tsl"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_ofsvh"]
+
+[resource]
+script = ExtResource("1_j1tsl")
+item_id = "0035"
+display_name = "个人便签簿"
+category = 1
+base_value = 21
+boundary_note = "本品质最低"
+description = "这是一个个人便签簿，它的品质是白。"
+model = ExtResource("1_ofsvh")

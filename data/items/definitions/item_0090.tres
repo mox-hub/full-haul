@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dhdu3xfxc157s"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_uvwgv"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_vbts7"]
+
+[resource]
+script = ExtResource("1_vbts7")
+item_id = "0090"
+display_name = "止痛药片"
+category = 4
+rarity = 1
+base_value = 3087
+boundary_note = "本品质最低"
+description = "这是一个止痛药片，它的品质是蓝。"
+model = ExtResource("1_uvwgv")

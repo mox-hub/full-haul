@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b1r6easv3651k"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_vmhvk"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_y43ys"]
+
+[resource]
+script = ExtResource("1_y43ys")
+item_id = "0123"
+display_name = "防风外套"
+category = 6
+rarity = 1
+base_value = 23719
+grid_size = Vector2i(2, 2)
+boundary_note = "本品质最高"
+description = "这是一个防风外套，它的品质是蓝。"
+model = ExtResource("1_vmhvk")
+model_scale = 1.7

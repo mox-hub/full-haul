@@ -19,12 +19,20 @@ func load_item_definitions() -> Dictionary:
 	return _store.item_definitions
 
 
+func load_item_data() -> Dictionary:
+	return _store.item_data_resources
+
+
 func get_item_definition(definition_id: String) -> Dictionary:
 	return _store.item_definitions.get(definition_id, {})
 
 
 func load_container_types() -> Dictionary:
 	return _store.container_types
+
+
+func load_container_data() -> Dictionary:
+	return _store.container_data_resources
 
 
 func load_backpack_offers() -> Dictionary:

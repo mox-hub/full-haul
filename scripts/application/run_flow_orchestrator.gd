@@ -70,9 +70,24 @@ var _last_run_outcome := ""
 var _placeholder_seq := 0
 
 ## 本局地图容器计划（AC-17 核心搜刮图形化：对局场景内的可操作容器实体来源）。
-## 每局入场时按配置生成 [{container_id, type_id, display_name, grid_width,
-## grid_height}]；容器数量读取 GameConfig（INV-16 单一来源）。
+## 每局入场时按配置生成 [{container_id, type_id, display_name, tier,
+## grid_width, grid_height}]；容器数量读取 GameConfig（INV-16 单一来源）。
 var _match_containers: Array = []
+
+## 物品概率系统（搜索系统子系统：容器产出按品质×类型加权随机抽取）。
+## 权重来自容器绑定（ContainerData.rarity_weights/category_weights），
+## 未绑定时回退共享 tier 权重表；池/权重不可用时回退轮转选取。
+var _loot := ItemProbabilitySystem.new()
+
+## 物品概率系统的候选定义池（ItemDefinition 数组；懒加载自仓储，
+## ItemData 资源优先、字典配置回退）
+var _item_pool: Array = []
+
+## 容器 Resource 注册态缓存（container_id -> ContainerData，懒加载）
+var _container_data: Dictionary = {}
+
+## 地图容器刷新随机源（类型随机 + 位置随机；可注种子保证测试/回放确定性）
+var _map_rng := RandomNumberGenerator.new()
 
 ## 容器搜索分步流程的物品计划（container_id -> Array[Dictionary]：
 ## [{instance_id, definition_id, rarity, value, size, pos}]）。物品身份只在
@@ -486,10 +501,11 @@ func move_warehouse_item(instance_id: String, at: Vector2i) -> bool:
 	return _item_inventory_service.move_item(instance_id, GridInventory.OwnerType.WAREHOUSE, at)
 
 
-## 为容器生成物品计划：按本局进度轮转物品定义（确定性，不引入随机），
-## 数量读配置 container_item_count_range（INV-16），逐件 first-fit 摆入容器
-## 网格（临时 GridInventory 承载校验）；放不下的物品截断（蒙版块与最终
-## 揭晓逐件一致）。
+## 为容器生成物品计划：经物品概率系统（搜索系统子系统）按「品质 × 类型」
+## 权重加权随机抽取——权重取容器绑定（ContainerData），未绑定回退共享 tier
+## 权重表；池/权重不可用时回退按本局进度轮转（确定性）。数量读配置
+## container_item_count_range（INV-16），逐件 first-fit 摆入容器网格（临时
+## GridInventory 承载校验）；放不下的物品截断（蒙版块与最终揭晓逐件一致）。
 func _plan_container_items(entry: Dictionary, state: RunState) -> Array:
 	var gw := maxi(int(entry.get("grid_width", 3)), 1)
 	var gh := maxi(int(entry.get("grid_height", 3)), 1)
@@ -497,8 +513,9 @@ func _plan_container_items(entry: Dictionary, state: RunState) -> Array:
 	var grid := GridInventory.new("plan-%s" % container_id, GridInventory.OwnerType.SAFE, gw, gh)
 	var items: Array = []
 	var start_index := _container_search_service.completed_container_count()
+	var weights := _loot_weights_for(entry)
 	for i in _container_item_count(start_index):
-		var def := _nth_item_definition(start_index + i)
+		var def := _loot_pick_definition(entry, weights, start_index + i)
 		var size := Vector2i(maxi(int(def.get("width", 1)), 1), maxi(int(def.get("height", 1)), 1))
 		var pos := _first_free_slot(grid, size)
 		if pos == Vector2i(-1, -1):
@@ -506,13 +523,76 @@ func _plan_container_items(entry: Dictionary, state: RunState) -> Array:
 		grid.place("plan-%d" % i, size, pos)
 		items.append({
 			"instance_id": "%s-%s-item-%d" % [state.run_id, container_id, i + 1],
-			"definition_id": str(def.get("definition_id", "item_battery")),
+			"definition_id": str(def.get("definition_id", "item_0001")),
 			"rarity": str(def.get("rarity", "common")),
 			"value": int(def.get("value", 40)),
 			"size": size,
 			"pos": pos,
 		})
 	return items
+
+
+## 解析容器产出权重：容器 Resource（ContainerData）显式绑定优先；空表回退
+## 共享 tier 权重表（container_tier_config，INV-16）。返回 {rarity, category}。
+func _loot_weights_for(entry: Dictionary) -> Dictionary:
+	var type_id := str(entry.get("type_id", ""))
+	var rarity_weights: Dictionary = {}
+	var category_weights: Dictionary = {}
+	var cdata: ContainerData = _container_resources().get(type_id, null)
+	if cdata != null:
+		rarity_weights = cdata.rarity_weights
+		category_weights = cdata.category_weights
+	if rarity_weights.is_empty():
+		var tier := str(entry.get("tier", "C1"))
+		rarity_weights = _loaded_config_data.get("container_tier_weights", {}).get(tier, {})
+	return {"rarity": rarity_weights, "category": category_weights}
+
+
+## 概率抽取一件（ItemDefinition -> 计划字典）；池空/未抽中回退轮转定义。
+func _loot_pick_definition(entry: Dictionary, weights: Dictionary,
+		round_index: int) -> Dictionary:
+	var pool := _item_definitions_pool()
+	var def: ItemDefinition = _loot.pick(pool, weights.get("rarity", {}),
+		weights.get("category", {}))
+	if def != null:
+		return {
+			"definition_id": def.definition_id, "rarity": def.rarity,
+			"value": def.value, "width": def.width, "height": def.height,
+		}
+	return _nth_item_definition(round_index)
+
+
+## 候选定义池（懒加载）：ItemData 资源优先，字典配置回退。
+func _item_definitions_pool() -> Array:
+	if not _item_pool.is_empty():
+		return _item_pool
+	if _repos != null and _repos.config_data != null:
+		if _repos.config_data.has_method("load_item_data"):
+			var data_dict: Dictionary = _repos.config_data.load_item_data()
+			for key in data_dict:
+				var def := ItemDefinition.from_resource(data_dict[key])
+				if def != null:
+					_item_pool.append(def)
+	if _item_pool.is_empty():
+		var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
+		for key in defs:
+			var def := ItemDefinition.from_config(defs[key])
+			if def != null:
+				_item_pool.append(def)
+	return _item_pool
+
+
+## 容器 Resource 注册态（懒加载；未提供时返回空表）。
+func _container_resources() -> Dictionary:
+	if _container_data.is_empty() and _repos != null and _repos.config_data != null:
+		if _repos.config_data.has_method("load_container_data"):
+			_container_data = _repos.config_data.load_container_data()
+	return _container_data
+
+
+## 注入物品概率系统随机种子（负值随机化）；测试确定性用。
+func set_loot_seed(seed_value: int) -> void:
+	_loot.set_seed(seed_value)
 
 
 ## 容器内物品数量（配置 container_item_count_range [min,max] 单一来源 INV-16；
@@ -613,19 +693,72 @@ func _build_match_containers() -> void:
 			continue
 		types.append(entry)
 	var count := _match_container_count()
+	## 随机刷新：类型池扩充到 count 后整体打乱（各类型均摊、避免扎堆），
+	## 位置在地图场网格单元内随机抖动布点（避免重叠；同种子可复现，
+	## 见 set_map_seed）
+	var spots := _map_spawn_spots(count)
+	var type_pool: Array = []
+	if not types.is_empty():
+		while type_pool.size() < count:
+			type_pool.append_array(types)
+		for i in range(type_pool.size() - 1, 0, -1):
+			var j := _map_rng.randi_range(0, i)
+			var tmp: Dictionary = type_pool[i]
+			type_pool[i] = type_pool[j]
+			type_pool[j] = tmp
 	for i in count:
-		if types.is_empty():
+		var pos: Vector2 = spots[i]
+		if type_pool.is_empty():
 			_match_containers.append({
 				"container_id": "map-c-%02d" % (i + 1), "type_id": "",
-				"display_name": "容器", "grid_width": 3, "grid_height": 3})
+				"display_name": "容器", "tier": "C1", "grid_width": 3, "grid_height": 3,
+				"map_pos": pos})
 			continue
-		var entry: Dictionary = types[i % types.size()]
+		var entry: Dictionary = type_pool[i]
 		_match_containers.append({
 			"container_id": "map-c-%02d" % (i + 1),
 			"type_id": str(entry.get("type_id", "")),
 			"display_name": str(entry.get("display_name", "容器")),
+			"tier": str(entry.get("tier", "C1")),
 			"grid_width": int(entry.get("grid_width", 3)),
-			"grid_height": int(entry.get("grid_height", 3))})
+			"grid_height": int(entry.get("grid_height", 3)),
+			"map_pos": pos})
+
+
+## 地图刷新布点：把地图场划为 ceil(sqrt(n)) 列网格，逐格随机抖动，
+## 单元顺序随机打乱（_map_rng），返回 n 个 0..1 归一化坐标。
+func _map_spawn_spots(count: int) -> Array:
+	var spots: Array = []
+	if count <= 0:
+		return spots
+	var cols := int(ceil(sqrt(float(count))))
+	var rows := int(ceil(float(count) / cols))
+	var cells: Array = []
+	for y in rows:
+		for x in cols:
+			cells.append(Vector2(x, y))
+	## Fisher-Yates 打乱单元顺序（_map_rng）
+	for i in range(cells.size() - 1, 0, -1):
+		var j := _map_rng.randi_range(0, i)
+		var tmp: Vector2 = cells[i]
+		cells[i] = cells[j]
+		cells[j] = tmp
+	for i in count:
+		var cell: Vector2 = cells[i]
+		var center := (cell + Vector2(0.5, 0.5)) / Vector2(cols, rows)
+		var jitter := Vector2(
+			_map_rng.randf_range(-0.32, 0.32) / cols,
+			_map_rng.randf_range(-0.32, 0.32) / rows)
+		spots.append((center + jitter).clamp(Vector2.ZERO, Vector2.ONE))
+	return spots
+
+
+## 注入地图刷新随机种子（负值随机化）；测试确定性/回放用。
+func set_map_seed(seed_value: int) -> void:
+	if seed_value < 0:
+		_map_rng.randomize()
+	else:
+		_map_rng.seed = seed_value
 
 
 ## 本局地图容器数量（配置单一来源 INV-16；未加载/非法时回退 6）。
@@ -666,14 +799,14 @@ func _container_plan_entry(container_id: String) -> Dictionary:
 
 ## 挑选一件物品定义用于搜索产出（配置数据单一来源 INV-16）。
 ## 按已完成容器数轮转配置数据中的定义（确定性，不引入随机）；配置未加载时
-## 回退内置 item_battery。
+## 回退内置 item_0001（物品注册表首条）。
 func _nth_item_definition(index: int) -> Dictionary:
 	var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
 	if not defs.is_empty():
 		var keys: Array = defs.keys()
 		return defs[keys[index % keys.size()]]
-	return {"definition_id": "item_battery", "rarity": "common",
-		"value": 40, "width": 1, "height": 1}
+	return {"definition_id": "item_0001", "rarity": "legendary",
+		"value": 15846000, "width": 1, "height": 1}
 
 
 ## 用例：开始撤离读条（IN_RUN_EXTRACTABLE -> EXTRACTING）。

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://yqbngef781nk"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_et12f"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_hxolt"]
+
+[resource]
+script = ExtResource("1_hxolt")
+item_id = "0085"
+display_name = "血糖仪"
+category = 4
+rarity = 1
+base_value = 23761
+boundary_note = "本品质最高"
+description = "这是一个血糖仪，它的品质是蓝。"
+model = ExtResource("1_et12f")

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://djqpljilylyi1"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_kt533"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_l75x2"]
+
+[resource]
+script = ExtResource("1_l75x2")
+item_id = "0122"
+display_name = "高档睡袋"
+category = 6
+rarity = 2
+base_value = 21467
+grid_size = Vector2i(1, 3)
+boundary_note = "本品质最低"
+description = "这是一个高档睡袋，它的品质是紫。"
+model = ExtResource("1_kt533")
+model_scale = 1.9

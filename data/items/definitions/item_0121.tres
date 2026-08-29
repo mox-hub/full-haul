@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://k4mjxn8uvyx"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_3m8lv"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_g0tcm"]
+
+[resource]
+script = ExtResource("1_g0tcm")
+item_id = "0121"
+display_name = "品牌手提包"
+category = 6
+rarity = 2
+base_value = 28734
+grid_size = Vector2i(2, 2)
+description = "这是一个品牌手提包，它的品质是紫。"
+model = ExtResource("1_3m8lv")
+model_scale = 1.7

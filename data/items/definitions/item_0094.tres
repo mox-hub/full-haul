@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://gl8r1r5npv8e"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_88akk"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_y0i2h"]
+
+[resource]
+script = ExtResource("1_y0i2h")
+item_id = "0094"
+display_name = "普通绷带"
+category = 4
+base_value = 37
+description = "这是一个普通绷带，它的品质是白。"
+model = ExtResource("1_88akk")

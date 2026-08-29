@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b01k2btxkix0v"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_b21ne"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_wjo34"]
+
+[resource]
+script = ExtResource("1_b21ne")
+item_id = "0131"
+display_name = "洗衣皂"
+category = 6
+base_value = 126
+description = "这是一个洗衣皂，它的品质是白。"
+model = ExtResource("1_wjo34")

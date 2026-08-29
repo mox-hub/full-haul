@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c788gre623vbd"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_0vyou"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_6lq5p"]
+
+[resource]
+script = ExtResource("1_6lq5p")
+item_id = "0045"
+display_name = "旧式笔记本电脑"
+category = 2
+rarity = 2
+base_value = 25418
+grid_size = Vector2i(2, 2)
+boundary_note = "本品质最低"
+description = "这是一个旧式笔记本电脑，它的品质是紫。"
+model = ExtResource("1_0vyou")
+model_scale = 1.7

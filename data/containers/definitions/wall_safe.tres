@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ContainerData" format=3 uid="uid://c63q2b6i1arnd"]
+
+[ext_resource type="Script" path="res://data/containers/container_data.gd" id="1_wvmxn"]
+
+[resource]
+script = ExtResource("1_wvmxn")
+container_id = "wall_safe"
+display_name = "嵌墙保险柜"
+tier = "C5"
+grid_size = Vector2i(2, 2)
+rarity_weights = {
+"common": 2,
+"epic": 40,
+"legendary": 20,
+"rare": 30,
+"uncommon": 8
+}
+category_weights = {
+"collectible": 6.0,
+"electronics": 4.0,
+"intel": 2.0
+}

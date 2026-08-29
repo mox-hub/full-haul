@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bw1yr7tjf7c3"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_1n35b"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_2xbvm"]
+
+[resource]
+script = ExtResource("1_1n35b")
+item_id = "0001"
+display_name = "古代能源核心"
+category = 0
+rarity = 4
+base_value = 15846000
+boundary_note = "本品质最高；全类别最高"
+description = "这是一个古代能源核心，它的品质是红。"
+model = ExtResource("1_2xbvm")

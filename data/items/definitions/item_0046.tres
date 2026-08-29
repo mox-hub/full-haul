@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dsnsedshgnqfw"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_e52iu"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_jc2ef"]
+
+[resource]
+script = ExtResource("1_e52iu")
+item_id = "0046"
+display_name = "车载记录仪"
+category = 2
+rarity = 1
+base_value = 24753
+boundary_note = "本品质最高"
+description = "这是一个车载记录仪，它的品质是蓝。"
+model = ExtResource("1_jc2ef")

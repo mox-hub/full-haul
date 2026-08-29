@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dqh3u6cprixut"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_i3d4a"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_s4580"]
+
+[resource]
+script = ExtResource("1_i3d4a")
+item_id = "0019"
+display_name = "黑胶唱片"
+category = 0
+rarity = 1
+base_value = 4917
+description = "这是一个黑胶唱片，它的品质是蓝。"
+model = ExtResource("1_s4580")

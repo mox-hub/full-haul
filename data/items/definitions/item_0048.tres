@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cv4i3mee8pgxd"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2p37p"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_cs75o"]
+
+[resource]
+script = ExtResource("1_2p37p")
+item_id = "0048"
+display_name = "高速存储卡"
+category = 2
+rarity = 1
+base_value = 11934
+description = "这是一个高速存储卡，它的品质是蓝。"
+model = ExtResource("1_cs75o")

@@ -211,3 +211,36 @@ func test_settle_idempotent_events() -> void:
 	orch.settle()
 	assert_that(_count(DomainEvents.Events.RUN_SETTLED)).is_equal(1)
 	assert_that(orch.current_phase()).is_equal(RunState.Phase.SETTLED)
+
+
+## [RunFlowOrchestrator] 地图随机刷新：同种子产生完全一致的容器计划
+## （类型与位置逐条一致；不同种子则位置分布不同）
+func test_map_spawn_seed_determinism() -> void:
+	var plan_a := _spawn_plan_with_seed(1234)
+	var plan_b := _spawn_plan_with_seed(1234)
+	var plan_c := _spawn_plan_with_seed(5678)
+	assert_int(plan_a.size()).is_equal(9)
+	for i in plan_a.size():
+		assert_str(str(plan_a[i].get("container_id"))).is_equal(
+			str(plan_b[i].get("container_id")))
+		assert_str(str(plan_a[i].get("display_name"))).is_equal(
+			str(plan_b[i].get("display_name")))
+		assert_that(plan_a[i].get("map_pos")).is_equal(plan_b[i].get("map_pos"))
+	## 位置全部落在 0..1 归一化地图场内
+	for entry: Dictionary in plan_a:
+		var pos: Vector2 = entry.get("map_pos", Vector2.ZERO)
+		assert_bool(pos.x >= 0.0 and pos.x <= 1.0 and pos.y >= 0.0 and pos.y <= 1.0).is_true()
+	## 不同种子下位置序列不同（9 个布点全同的概率可忽略）
+	var differs := false
+	for i in plan_a.size():
+		if plan_a[i].get("map_pos") != plan_c[i].get("map_pos"):
+			differs = true
+			break
+	assert_bool(differs).is_true()
+
+
+func _spawn_plan_with_seed(seed_value: int) -> Array:
+	var orch := _orchestrator(_InMemoryStateStore.new())
+	orch.set_map_seed(seed_value)
+	orch._build_match_containers()
+	return orch.match_containers()

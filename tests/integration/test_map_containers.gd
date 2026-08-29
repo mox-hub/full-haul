@@ -74,8 +74,10 @@ func test_map_container_entities_clickable() -> void:
 	## （RUN_INIT -> IN_RUN_LOCKED 无事件，按钮态由每帧阶段轮询刷新）
 	await get_tree().process_frame
 
-	## 地图上生成容器实体，数量与本局容器计划一致（配置单一来源 INV-16）
-	var containers: GridContainer = match_page.get_node("%MapContainers") as GridContainer
+	## 地图上生成容器实体（随机刷新：类型+位置），数量与本局容器计划一致
+	## （配置单一来源 INV-16）；实体挂在地图场画布 %MapContainers 下
+	var containers: Control = match_page.get_node("%MapContainers") as Control
+	assert_that(containers).is_not_null()
 	assert_that(containers.get_child_count()).is_equal(orch.match_containers().size())
 	assert_that(containers.get_child_count()).is_greater_equal(
 		orch.required_container_count())

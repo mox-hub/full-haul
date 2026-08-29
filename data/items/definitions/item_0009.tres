@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://oai3ds60pte5"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_31ruq"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_kfqp7"]
+
+[resource]
+script = ExtResource("1_31ruq")
+item_id = "0009"
+display_name = "祖母绿胸针"
+category = 0
+rarity = 3
+base_value = 132814
+description = "这是一个祖母绿胸针，它的品质是金。"
+model = ExtResource("1_kfqp7")

@@ -53,10 +53,12 @@ func test_create_memory_set_has_all_repos() -> void:
 func test_create_memory_set_roundtrip_via_interfaces() -> void:
 	var set := RepositoryProvider.create_set()
 
-	## 配置数据经接口读取（切片 9：内存后端已种子化 V0.1 默认配置，单一来源 INV-16）
+	## 配置数据经接口读取（切片 9：内存后端已种子化 V0.1 默认配置，单一来源 INV-16；
+	## 物品定义自物品注册表 Resource 化装载：145 条物资数据库 + item_0001 首条）
 	set.config_data.load_backpack_offers()
 	assert_that(set.config_data.load_item_definitions().is_empty()).is_false()
-	assert_that(set.config_data.load_item_definitions().has("item_battery")).is_true()
+	assert_that(set.config_data.load_item_definitions().has("item_0001")).is_true()
+	assert_that(set.config_data.load_item_definitions().size()).is_equal(145)
 
 	## 局外账户经接口读写
 	var profile: PlayerProfile = set.profile.load()

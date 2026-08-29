@@ -34,9 +34,14 @@ PRAGMA foreign_keys = ON;
 --   effect_value  : 功能道具效果数值（WORD-27「效果数值」列；非功能道具为 NULL）
 --   series        : 藏品所属系列（WORD-27「所属系列」列；道具为 NULL）
 --   color_semantic: 视觉语义色（品质 HEX 为 TBD，故可空）
+--   max_stack     : 最大堆叠数（1 = 不可堆叠；对齐 ItemData.max_stack）
+--   boundary_note : 品质内极值备注（物资数据库 boundary 列）
+--   description   : 展示描述
+-- 运行期单一来源为 data/items/item_registry.tres 注册的 ItemData .tres
+-- 资源（INV-16）；本表为 SQLite 后端的同构落库形态（增量列见迁移 002）。
 CREATE TABLE IF NOT EXISTS item_definition (
 	definition_id   TEXT PRIMARY KEY,
-	category        TEXT NOT NULL CHECK (category IN ('item', 'collectible')),
+	category        TEXT NOT NULL CHECK (category IN ('collectible', 'intel', 'electronics', 'tool', 'medical', 'food', 'daily', 'material')),
 	name            TEXT NOT NULL,
 	rarity          TEXT NOT NULL CHECK (rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary')),
 	width           INTEGER NOT NULL CHECK (width > 0),
@@ -45,7 +50,10 @@ CREATE TABLE IF NOT EXISTS item_definition (
 	stackable       INTEGER NOT NULL DEFAULT 0,
 	effect_value    INTEGER,
 	series          TEXT,
-	color_semantic  TEXT
+	color_semantic  TEXT,
+	max_stack       INTEGER NOT NULL DEFAULT 1,
+	boundary_note   TEXT,
+	description     TEXT
 );
 -- 按稀有度/类别快速查询（配置加载与数值表生成用）
 CREATE INDEX IF NOT EXISTS idx_item_definition_rarity ON item_definition (rarity);

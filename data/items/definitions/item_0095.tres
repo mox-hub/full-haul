@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://m6ucam0gg5nb"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_i11s0"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_xl3yk"]
+
+[resource]
+script = ExtResource("1_xl3yk")
+item_id = "0095"
+display_name = "医用纱布"
+category = 4
+base_value = 14
+boundary_note = "本品质最低"
+description = "这是一个医用纱布，它的品质是白。"
+model = ExtResource("1_i11s0")

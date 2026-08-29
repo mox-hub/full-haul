@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bjvo2d2b2u2et"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_6lvyo"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_cqixl"]
+
+[resource]
+script = ExtResource("1_6lvyo")
+item_id = "0111"
+display_name = "能量棒"
+category = 5
+base_value = 67
+description = "这是一个能量棒，它的品质是白。"
+model = ExtResource("1_cqixl")

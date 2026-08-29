@@ -92,6 +92,9 @@ func before_test() -> void:
 ## Telemetry 域的编排器（模拟 main.gd 组合根装配，切片 9 全量接线）。
 func _wired_orchestrator() -> Dictionary:
 	var store := InMemoryDataStore.new()
+	## 配置数据与 ItemInventory 注入同源（item_battery），保证编排器占位产出的
+	## 定义在物品服务中存在（占位搜索 -> 携带链路依赖定义已加载，INV-16）
+	store.item_definitions = _FakeConfigRepo.new().item_definitions.duplicate(true)
 	var set := RepositorySet.new()
 	set.config_data = MemoryConfigDataRepository.new(store)
 	set.profile = MemoryProfileRepository.new(store)
@@ -236,7 +239,8 @@ func test_search_map_container_by_id_and_completed_guard() -> void:
 	var orch: RunFlowOrchestrator = parts["orch"]
 
 	_enter_run_with_backpack(orch)
-	assert_that(orch.match_containers().size()).is_equal(6)
+	# 默认配置 match_container_count（地图随机刷新；数量单一来源 INV-16）
+	assert_that(orch.match_containers().size()).is_equal(GameConfig.new().match_container_count)
 
 	## 指定地图容器搜索：完成该容器并携带产出
 	var result: Dictionary = orch.search_and_carry_container("map-c-01")

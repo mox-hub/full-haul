@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dmaarkermpngf"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_1d2nd"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_2xio3"]
+
+[resource]
+script = ExtResource("1_1d2nd")
+item_id = "0012"
+display_name = "翡翠手镯"
+category = 0
+rarity = 2
+base_value = 42657
+description = "这是一个翡翠手镯，它的品质是紫。"
+model = ExtResource("1_2xio3")

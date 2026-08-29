@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://4xoau3dpp436"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_0i6x6"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_ikl71"]
+
+[resource]
+script = ExtResource("1_ikl71")
+item_id = "0065"
+display_name = "压力表"
+category = 3
+rarity = 1
+base_value = 17248
+description = "这是一个压力表，它的品质是蓝。"
+model = ExtResource("1_0i6x6")

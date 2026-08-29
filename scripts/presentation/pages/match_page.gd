@@ -45,7 +45,8 @@ var _orchestrator: RunFlowOrchestrator = null
 
 @onready var hud: MatchHud = $%Hud
 @onready var map_area: Panel = $%MapArea
-@onready var map_containers: GridContainer = $%MapContainers
+@onready var map_view: Control = $%MapView
+@onready var map_containers: Control = $%MapContainers
 @onready var search_button: Button = $%SearchButton
 @onready var extract_button: Button = $%ExtractButton
 @onready var extract_done_button: Button = $%ExtractDoneButton
@@ -81,6 +82,17 @@ var _last_seen_phase: int = -1
 ## 搜索弹窗动画代际（新一次播放/关闭使旧揭晓序列余留步骤失效）
 var _popup_generation := 0
 
+## 地图场平移态（长按/按下拖动移动地图；松手位移在点击半径内视为点击容器）
+var _map_dragging := false
+var _map_press_pos := Vector2.ZERO
+var _map_pan_origin := Vector2.ZERO
+
+## 地图场尺寸（设计 px；大于视口，经拖动平移查看全部容器）
+const MAP_CANVAS_SIZE := Vector2(1600, 2000)
+## 容器实体尺寸与点击判定半径
+const MAP_CONTAINER_SIZE := Vector2(320, 180)
+const MAP_TAP_RADIUS := 24.0
+
 
 func _ready() -> void:
 	_apply_styles()
@@ -90,6 +102,7 @@ func _ready() -> void:
 	extract_button.pressed.connect(_on_extract_button_pressed)
 	extract_done_button.pressed.connect(_on_extract_done_button_pressed)
 	timeout_button.pressed.connect(_on_timeout_button_pressed)
+	map_view.gui_input.connect(_on_map_view_gui_input)
 
 
 ## 组合根（main.gd）注入依赖、订阅事件并初始化展示。
@@ -320,23 +333,29 @@ func _container_entry(container_id: String) -> Dictionary:
 
 
 ## 重建地图容器实体（数据驱动：编排器本局容器计划，AC-17）。
-## 旧实体先脱离容器再延迟释放（queue_free 帧末才生效，同帧内仍会被
-## get_children 读到，先 remove 保证重建后立即只有新实体）。
+## 容器按计划中的随机刷新位置（map_pos 归一化坐标）摆放在大于视口的地图
+## 场画布上；实体按钮不消费鼠标（IGNORE），地图视图统一处理长按/拖拽平移
+## 与点击命中（见 _on_map_view_gui_input）。
 func _rebuild_map_containers() -> void:
 	if map_containers == null or _orchestrator == null:
 		return
 	for child in map_containers.get_children():
 		map_containers.remove_child(child)
 		child.queue_free()
+	map_containers.position = Vector2.ZERO
+	var roam := MAP_CANVAS_SIZE - MAP_CONTAINER_SIZE - Vector2(80, 80)
 	for entry in _orchestrator.match_containers():
 		var container_id := str(entry.get("container_id", ""))
 		var display_name := str(entry.get("display_name", "容器"))
+		var tier := str(entry.get("tier", "C1"))
 		var size_text := "%sx%s" % [entry.get("grid_width", 3), entry.get("grid_height", 3)]
+		var map_pos: Vector2 = entry.get("map_pos", Vector2(0.5, 0.5))
 		var button := Button.new()
-		button.text = "%s %s\n点击搜索" % [display_name, size_text]
-		button.custom_minimum_size = Vector2(0, 200)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		button.text = "%s〔%s〕%s\n点击搜索" % [display_name, tier, size_text]
+		button.custom_minimum_size = MAP_CONTAINER_SIZE
+		button.size = MAP_CONTAINER_SIZE
+		button.position = Vector2(40, 40) + map_pos * roam
+		button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.set_meta("container_id", container_id)
 		button.set_meta("display_name", display_name)
 		button.pressed.connect(func(): _on_container_pressed(container_id))
@@ -366,6 +385,41 @@ func _refresh_container_buttons() -> void:
 			button.disabled = true
 		else:
 			button.disabled = not in_run
+
+
+## 地图视图输入：按下开始记录，拖动平移地图场（画布位置钳制在视口内），
+## 松手时位移在点击半径内视为点击——命中容器实体即打开搜索弹窗
+## （实体按钮 mouse_filter = IGNORE，输入统一由地图视图处理）。
+func _on_map_view_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var button_event := event as InputEventMouseButton
+		if button_event.pressed:
+			_map_dragging = true
+			_map_press_pos = button_event.position
+			_map_pan_origin = map_containers.position
+		else:
+			_map_dragging = false
+			if (button_event.position - _map_press_pos).length() <= MAP_TAP_RADIUS:
+				_tap_map_container(button_event.position)
+	elif event is InputEventMouseMotion and _map_dragging:
+		var motion := event as InputEventMouseMotion
+		var offset := _map_pan_origin + motion.position - _map_press_pos
+		var min_pos := map_view.size - map_containers.size
+		map_containers.position = offset.clamp(
+			min_pos.min(Vector2.ZERO), Vector2.ZERO)
+
+
+## 点击命中：把视图局部坐标映射到画布坐标，找覆盖该点的可交互容器实体。
+func _tap_map_container(local_pos: Vector2) -> void:
+	var canvas_pos := local_pos - map_containers.position
+	for child in map_containers.get_children():
+		var button := child as Button
+		if button == null or button.disabled:
+			continue
+		if Rect2(button.position, button.size).has_point(canvas_pos):
+			button.pressed.emit()
+			return
 
 
 ## 按钮回调：开始撤离（IN_RUN_EXTRACTABLE -> EXTRACTING）。

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c73tuchimq7yx"]
+
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_de6t7"]
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_rtyoh"]
+
+[resource]
+script = ExtResource("1_rtyoh")
+item_id = "0139"
+display_name = "铜线束"
+rarity = 1
+base_value = 4896
+grid_size = Vector2i(1, 2)
+description = "这是一个铜线束，它的品质是蓝。"
+model = ExtResource("1_de6t7")
+model_scale = 1.3

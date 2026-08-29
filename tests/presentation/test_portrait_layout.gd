@@ -96,19 +96,26 @@ func _canvas_viewport() -> SubViewport:
 
 
 ## 递归收集可见但超出画布的控件描述（tag:节点名 矩形）。
+## 裁剪视图（clip_contents = true，如对局地图场 MapView）内部内容有意
+## 大于画布、经平移查看，整棵子树豁免。
 func _collect_out_of_canvas(tag: String, node: Node) -> Array:
 	var out: Array = []
-	_collect_into(tag, node, out)
+	_collect_into(tag, node, out, false)
 	return out
 
 
-func _collect_into(tag: String, node: Node, out: Array) -> void:
+func _collect_into(tag: String, node: Node, out: Array, in_clipped: bool) -> void:
+	var clipped_here := in_clipped
+	if node is Control and (node as Control).clip_contents:
+		clipped_here = true
 	for child in node.get_children():
-		_collect_into(tag, child, out)
+		_collect_into(tag, child, out, clipped_here)
 	if node is not Control:
 		return
 	var control := node as Control
 	if not control.visible:
+		return
+	if clipped_here:
 		return
 	var rect := control.get_global_rect()
 	if rect.position.x < -0.5 or rect.position.y < -0.5 \

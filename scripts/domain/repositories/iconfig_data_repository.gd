@@ -15,6 +15,13 @@ func load_item_definitions() -> Dictionary:
 	return {}
 
 
+## 物品定义 Resource 表（definition_id -> ItemData，Resource 化数据源）。
+## 后端未提供 Resource 化数据时返回空 Dictionary，消费方回退
+## load_item_definitions() 字典视图。
+func load_item_data() -> Dictionary:
+	return {}
+
+
 ## 按 definition_id 读取单个道具/藏品定义；不存在返回空 Dictionary。
 func get_item_definition(definition_id: String) -> Dictionary:
 	return {}
@@ -22,6 +29,13 @@ func get_item_definition(definition_id: String) -> Dictionary:
 
 ## 容器 / 撤离点类型表（type_id -> Dictionary）。
 func load_container_types() -> Dictionary:
+	return {}
+
+
+## 容器定义 Resource 表（container_id -> ContainerData，Resource 化数据源，
+## 含物品概率系统绑定）。后端未提供 Resource 化数据时返回空 Dictionary，
+## 消费方回退 load_container_types() 字典视图。
+func load_container_data() -> Dictionary:
 	return {}
 
 

@@ -10,6 +10,25 @@
 
 ## [未发布]
 
+### 新增
+
+- 容器扩档与地图随机刷新：容器种子从 3 种扩为 9 种（新增文件纸箱 C1 2x3 / 食品补给箱 C1 3x2 / 工具壁柜 C2 4x2 / 医疗冷藏箱 C2 3x3 / 军用弹药箱 C4 3x3 / 嵌墙保险柜 C5 2x2，六种均带品质/类型概率绑定落盘，文件纸箱偏情报、保险柜偏高稀有等）；编排器本局容器计划改为随机刷新——类型池打乱均摊抽取、位置在归一化地图场网格单元内抖动布点（新增 _map_rng + set_map_seed 可注种子，同种子计划完全一致，含确定性回归用例）；GameConfig.match_container_count 6→9
+- 对局地图场改造（查看更多容器 + 长按拖动）：地图区改为「裁剪视图 MapView + 1600×2000 大画布 MapContainers」——容器实体按刷新位置绝对布点，按下拖动平移地图（画布位置钳制在视口内），松手位移在点击半径内命中容器即打开搜索弹窗（实体按钮不消费鼠标，输入统一由地图视图处理）；已完成容器禁用标记契约不变；竖屏布局守卫为裁剪视图（clip_contents）子树增加通用豁免
+
+### 新增
+
+- 物品概率系统（搜索系统子系统）：新增 `ItemProbabilitySystem` 领域子系统——容器搜索产出按「品质 × 类型」权重加权随机抽取（权重语义：空表不分层、非空表未列出按 0 排除；随机源可注入固定种子保证测试确定性）；编排器容器物品计划改走概率系统，容器 Resource 显式绑定优先、空表回退共享 tier 权重表（container_tier_config）、池不可用回退确定性轮转；`ItemDefinition` 补 `category` 字段支撑类型维度
+- 容器 Resource 化：新增 `ContainerData` 定义资源（自身属性 kind/tier/格子尺寸/地图可用性 + 物品概率系统绑定 rarity_weights/category_weights + icon/model/model_scale 美术关联）；3 条种子容器落盘 `data/containers/definitions/`（木箱 C1 3x3 / 铁箱 C3 4x4 / 撤离点 2x2）；新建注册表 `data/containers/container_registry.tres`（string_id <-> UID + tier 属性索引）；生成器 `tools/generate_container_data.gd`；内存后端经新增 `ContainerResourceCatalog` 装载并导出 container_types 字典视图；`IConfigDataRepository` 新增 `load_container_data()`
+- 物品弹窗加载绑定模型：`ModelPreviewView` 模型解析升级为三级优先——物品注册态绑定（`ItemData.model` + `model_scale`，经组合根注入回调解耦，缩放参与取景/居中计算）→ 既有 `ITEM_MODEL_PATHS` 路径映射 → 品质色正方体占位
+
+### 测试
+
+- 新增 `tests/domain/test_item_probability_system.gd`（6 用例：种子确定性/品质排除/类型分层/乘积权重/均匀分布/空池）、`tests/domain/test_container_resource_definitions.gd`（6 用例：注册表/属性/字典视图/绑定持久化/绑定作用于概率系统/内存后端装载）；36 套件全绿
+
+### 新增
+
+- 物品模型绑定与描述台词：`ItemData` 新增 `model_scale` 缩放比例字段；生成器按占格大小自动绑定 `assets/models/warehouse/` 本地模型（1x1/2x2/2x3 -> box-1-1-1 @1.0/1.7/2.2，长条 1x2/1x3/1x4 -> box-05-05-1 @1.3/1.9/2.4，normalize 后短长边选档），全量 145 条 .tres 完成 ExtResource 绑定（模型为本地资产不入库，缺文件时 model 装载 null、消费方回退占位）；描述台词按「这是一个{{名称}}，它的品质是{{品质}}。」模板生成；生成器对手调值有保留策略（description 非空/model 非空/model_scale≠1 不覆盖）
+
 ### 变更
 
 - 主界面仓库场景支持滚轮缩放：WarehouseView 相机距离改为 dolly（进场推拉）× zoom（滚轮）复合驱动并统一收口到 `_apply_camera()`，新增 `set_zoom()/zoom()` 通道（单格 1.1 倍、限幅 0.55–1.7，围绕注视点等距缩放不改变视线方向）；大厅页 BaseArea 输入处理接入滚轮上/下事件驱动拉近拉远，并发布 UI_INTERACTED（scene_zoom）留痕（feat/warehouse-base-v1）
@@ -33,8 +52,13 @@
 - WORD-40 局内页面重构（首页同款像素风）：顶部 HUD 改为三属性图标条——本局时间（沙漏+倒计时）/撤离目标（木箱+容器 x/N）/携带数（背包+件数）；撤离读条（金色进度条+剩余秒数）移至地图区底部显示；操作区改三枚圆形像素钮（搜索/撤离/完成，超时调试钮转为隐藏钩子，测试契约节点名不变）；底部新增背包+安全箱格阵（6+1 列×4 行），携带物品按品质色填入背包格；新增搜索弹窗——容器内部空间可视化（如 3x3/4x4 格），逐格扫描动画+品质色揭晓（纯表现层回放，领域侧逻辑不变），地图容器实体沿用可点击按钮契约（`%MapContainers`，完成态「已搜索」标记）（feat/lobby-home-ui）
 - WORD-40 像素 UI 管线共享化：调色板/品质色/按钮与格子样式助手提升至 PixelUiKit 单一来源（epic 品质色对齐示意草图为红色系），首页与局内共用；按钮补充禁用态样式；编排器新增 backpack_item_ids() 只读访问器（局内背包格按放置顺序渲染物品品质）（feat/lobby-home-ui）
 - 合并 bugfix/loadout-container-timer：入场货币校验/地图容器实体/双计时停滞修复（详见该分支条目）（feat/lobby-home-ui）
+- 内存后端种子：硬编码物品定义改为物品注册表全量装载（145 条 ItemData .tres）；`test_repository_provider`/`test_telemetry_wiring` 接线同步（后者配置与物品服务注入同源）
 
 ### 新增
+
+- 物品系统 Resource 化：新增 `ItemData` 定义资源（`data/items/item_data.gd`，类别/品质枚举 + 占格尺寸 + 堆叠数 + 品质极值备注 + `icon`/`model` 美术关联字段）；全量 145 条物资数据库落盘为 `data/items/definitions/item_*.tres`；新建 Yard Registry 注册表 `data/items/item_registry.tres`（string_id <-> UID 登记 + rarity/category 属性索引）；CSV 源表入库 `data/items/source/`（keep-import 不生成翻译），生成器 `tools/generate_item_data.gd` 幂等可重建
+- 数据链路改造：`IConfigDataRepository` 新增 `load_item_data()`；内存后端经新增 `ItemResourceCatalog` 从注册表装载 ItemData（Resource 优先、字典视图兼容 sqlite/测试桩）；`ItemDefinition` 新增 `from_resource()` 与 `max_stack`/`boundary_note`/`description` 字段；`ItemInventoryService` 装载链路 Resource 优先；编排器搜索产出兜底 ID 同步注册表首条 `item_0001`
+- db：`item_definition` 表新增 `max_stack`/`boundary_note`/`description` 列（schema.sql 全量形态 + 迁移 002 增量列），类别枚举扩为八类（collectible/intel/electronics/tool/medical/food/daily/material）
 
 - 物品 3D 模型预览管线（项目首个 3D 用例）：外部 OBJ 模型 HanGun（科幻手枪 LOWPOLY + 两张 BaseColor 贴图，导出缺失的 .mtl 按材质名补写）落盘 assets/models/han_gun/；新增 ModelPreviewView 组件（SubViewport 独立 World3D + 透明底 + 按 AABB 自动取景/长轴放平/慢速自转，定义→模型路径映射收编于组件 ITEM_MODEL_PATHS）与 ModelPreviewPopup 大图弹窗；仓库出售行与局内背包格对有映射的物品渲染旋转缩略图、点击弹 360° 大图，无映射物品保持品质色条；物品种子新增 item_scifi_pistol「科幻手枪」（rare/2×1/350）（feat/warehouse-base-v1）
 - AI 生图资产生产线（仓库基地视觉升级 M3）：docs/art/art-pipeline.md（等距视角/左上光源/概念图色板 token 的 prompt 模板、目录与命名规范、规格表、整备 checklist、迭代流程）与 tools/asset_check.gd headless 校验工具（命名/尺寸读 WarehouseView.DEFAULT_LAYOUT 单一来源/透明底与裁边/底图不透明/色板偏离度报告，不合格退出码 1 可挂 CI）（feat/warehouse-base-v1）
@@ -56,6 +80,7 @@
 ### 测试
 
 - 新增回归用例：0 货币已持有档位入场拦截、每局重复扣款、双确认防护（test_profile_loadout_wiring）；帧级浮点计时累积与余量复位（test_run_session_service/test_extract_service）；本局容器计划与按容器搜索幂等（test_container_search_wiring/test_telemetry_wiring）；地图容器实体 GUI 可点击（tests/integration/test_map_containers.gd，全局 EventBus 进程级单例下一局一套件）
+- 新增 `tests/domain/test_item_resource_definitions.gd`（9 用例：注册表完整性/字段抽样/枚举映射/from_resource 映射与旋转/字典回退一致性/属性索引分布/服务 Resource 装载链路）；全仓库按目录逐套件跑绿（domain/application/infrastructure/presentation/integration 0 失败）
 
 ### 新增
 
