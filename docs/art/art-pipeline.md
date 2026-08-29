@@ -35,17 +35,22 @@ assets/art/
 - 一律 `snake_case.png`；**禁止中文/空格/大写**。
 - `source_raw/` 原始 2K/4K 出图留存自查，不进 git（已配 `.gitignore`）。
 
-## 3. 规格表（布局单一来源在 `warehouse_view.gd` DEFAULT_LAYOUT）
+## 3. 规格表（布局单一来源在 `warehouse_view.gd` DEFAULT_LAYOUT；pos = 物件在等距地坪上的足迹中心）
+
+> 2026-08-28：首页仓库已改用 3D 体块模型重建（`assets/models/warehouse/`，
+> 文件名即 cm 尺寸、原点在足迹底面中心；目录入 .gitignore 作本地资产），
+> 本节 plate/props 规格表转为 2D 生图管线的历史参考；物件落位语义
+> （等距地坪足迹中心、design px）延续到 DEFAULT_LAYOUT。
 
 | 资产 | 显示尺寸 (px) | 生成尺寸 (px, 2x) | 层 | 交互 |
 |---|---|---|---|---|
 | warehouse_plate | 1080×760 | 2160×1520 | back | 无 |
-| shelf_a / shelf_b | 260×300 | 520×600 | mid | hotspot→仓库弹窗 |
-| crate_stack | 220×150 | 440×300 | mid | hotspot→仓库弹窗 |
-| roll_door | 200×210 | 400×420 | mid | hotspot→撤离伏笔 |
-| barrels | 120×140 | 240×280 | mid | 氛围 |
-| plants | 110×120 | 220×240 | mid | 氛围 |
-| pallet_jack | 170×110 | 340×220 | fore | 氛围（视差前景） |
+| shelf_a / shelf_b | 150×180 | 300×360 | mid | hotspot→仓库弹窗 |
+| crate_stack | 170×120 | 340×240 | mid | hotspot→仓库弹窗 |
+| roll_door | 100×190 | 200×380 | mid | hotspot→撤离伏笔（贴合右后墙的斜面门板） |
+| barrels | 95×110 | 190×220 | mid | 氛围 |
+| plants | 85×95 | 170×190 | mid | 氛围 |
+| pallet_jack | 140×90 | 280×180 | fore | 氛围（视差前景） |
 
 - 显示尺寸为 design px；**生成一律 2x** 后降采样（降采样由整备时完成，
   入库文件即 2x 或标注过的显示尺寸，运行时 LINEAR 缩放平滑）。
@@ -103,3 +108,23 @@ godot --path . -s res://tools/lobby_preview.gd
 
 > 建造模式预留：`WarehouseView.apply_layout()/current_layout()` 为将来
 > 「基地布置」的存/载入口；布局中的 pos/size 字段即资产摆放坐标（design px）。
+
+## 8. 3D 物品模型（首个用例：科幻手枪 HanGun）
+
+物品的 3D 展示通道（仓库行/背包格缩略图 + 点击大图弹窗）与 2D 生图管线并行，
+落盘约定如下：
+
+- **目录**：`assets/models/<物品slug>/`（如 `assets/models/han_gun/`），
+  内含 `<slug>.obj` + `<slug>.mtl` + 贴图 PNG；命名一律 snake_case
+  （无中文/空格/大写），与第 2 节一致。
+- **mtl**：外部导出常缺失 .mtl，需按 OBJ 内 `usemtl` 材质名补写
+  （`newmtl <名>` + `map_Kd <相对路径贴图>`）；OBJ 的 `mtllib` 行指向本目录
+  的 .mtl 文件名。材质↔贴图对应关系以 `lobby_preview.gd` 截图目检校验。
+- **登记**：定义→模型路径映射在
+  `scripts/presentation/widgets/model_preview_view.gd` 的 `ITEM_MODEL_PATHS`
+  字典登记（表现层映射；3D 管线验证后再考虑提升为 ItemDefinition 正式字段）。
+- **展示**：ModelPreviewView（透明底独立 World3D 视口，按网格 AABB 自动取景、
+  长轴自动放平、可开关慢速自转）与 ModelPreviewPopup 大图弹窗共用；无映射的
+  物品由调用方回退品质色块渲染。
+- **流程**：模型+贴图落盘 → `godot --headless --path . --import` →
+  `lobby_preview.gd` 截图目检（材质对应/取景/明暗）→ 合格提交（changelog 记一条）。

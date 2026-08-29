@@ -16,3 +16,6 @@ build/
 
 # ZCode 会话产物
 .zcode/
+
+# 外部 3D 模型（本地资产，不入库不入包）
+assets/models/
