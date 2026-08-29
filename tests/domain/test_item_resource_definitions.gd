@@ -45,6 +45,37 @@ func test_item_0001_fields() -> void:
 	assert_int(data.base_value).is_equal(15846000)
 	assert_that(data.size()).is_equal(Vector2i.ONE)
 	assert_int(data.max_stack).is_equal(1)
+	## 生成默认描述台词与模型缩放（1x1 -> 1.0）
+	assert_str(data.description).is_equal("这是一个古代能源核心，它的品质是红。")
+	assert_float(data.model_scale).is_equal(1.0)
+
+
+## [ItemData] 模型绑定按占格大小选档（缩放比例为环境无关的数据断言）
+func test_model_bindings_by_grid_size() -> void:
+	## (2,3) 最大档 -> box-1-1-1 @ 2.2；（2,1）长条 -> box-05-05-1 @ 1.3
+	var statue := ItemResourceCatalog.load_item("item_0006") # 鎏金雕像 2x3
+	assert_float(statue.model_scale).is_equal(2.2)
+	assert_that(statue.model == null or statue.model is Mesh).is_true()
+	var album := ItemResourceCatalog.load_item("item_0021") # 限量画册 2x1
+	assert_float(album.model_scale).is_equal(1.3)
+	## (3,1)/(1,4)/(2,2) 档位
+	assert_float(ItemResourceCatalog.load_item("item_0031").model_scale).is_equal(1.9)
+	assert_float(ItemResourceCatalog.load_item("item_0030").model_scale).is_equal(2.4)
+	assert_float(ItemResourceCatalog.load_item("item_0023").model_scale).is_equal(1.7)
+
+
+## [ItemData] 全量描述台词与缩放数据完备（环境无关：描述非空、缩放为正）
+func test_all_items_have_description_and_scale() -> void:
+	var all := ItemResourceCatalog.load_all()
+	assert_that(all.size()).is_equal(145)
+	for def_id: String in all:
+		var data: ItemData = all[def_id]
+		var expect := "这是一个%s，它的品质是%s。" % [data.display_name,
+			ItemData.RARITY_NAMES[data.rarity]]
+		assert_str(data.description).is_equal(expect)
+		assert_float(data.model_scale).is_greater(0.0)
+		## 模型为本地资产（不入库），缺文件时装载为 null，存在时必须是 Mesh
+		assert_that(data.model == null or data.model is Mesh).is_true()
 
 
 ## [ItemData] 枚举 -> 既有字符串口径映射

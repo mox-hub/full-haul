@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b0jc4i0tcby2e"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2bhdf"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_31onc"]
 
 [resource]
 script = ExtResource("1_2bhdf")
@@ -9,3 +10,5 @@ display_name = "密封圣遗物"
 category = 0
 rarity = 4
 base_value = 2943000
+description = "这是一个密封圣遗物，它的品质是红。"
+model = ExtResource("1_31onc")

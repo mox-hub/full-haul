@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://yit61ff4bedr"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_h4uic"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_lkw32"]
 
 [resource]
@@ -9,3 +10,5 @@ display_name = "电烙铁"
 category = 3
 rarity = 1
 base_value = 7482
+description = "这是一个电烙铁，它的品质是蓝。"
+model = ExtResource("1_h4uic")

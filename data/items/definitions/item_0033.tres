@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c718pp7j2tq2l"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_eluvx"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_oigrc"]
 
 [resource]
 script = ExtResource("1_eluvx")
@@ -9,3 +10,5 @@ display_name = "旧报纸剪报"
 category = 1
 base_value = 148
 boundary_note = "本品质最高"
+description = "这是一个旧报纸剪报，它的品质是白。"
+model = ExtResource("1_oigrc")

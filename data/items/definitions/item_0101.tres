@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bkagu44r88hlk"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_1ddq5"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_yq86j"]
 
 [resource]
 script = ExtResource("1_1ddq5")
@@ -8,3 +9,5 @@ item_id = "0101"
 display_name = "即食肉干"
 category = 5
 base_value = 367
+description = "这是一个即食肉干，它的品质是白。"
+model = ExtResource("1_yq86j")

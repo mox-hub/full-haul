@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dytlxrxdteo4e"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_hl5jo"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_ymok5"]
 
 [resource]
@@ -10,3 +11,6 @@ category = 1
 rarity = 2
 base_value = 43712
 grid_size = Vector2i(1, 2)
+description = "这是一个私人日记原稿，它的品质是紫。"
+model = ExtResource("1_hl5jo")
+model_scale = 1.3

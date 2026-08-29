@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://2mhlnlxlkcon"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_4nqhg"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_a5jky"]
 
 [resource]
@@ -9,3 +10,5 @@ display_name = "砂纸套装"
 category = 3
 base_value = 275
 boundary_note = "本品质最高"
+description = "这是一个砂纸套装，它的品质是白。"
+model = ExtResource("1_4nqhg")

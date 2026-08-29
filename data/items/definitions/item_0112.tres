@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bu4krujn7cy4n"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_7dyay"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_xlx7x"]
 
 [resource]
@@ -8,3 +9,5 @@ item_id = "0112"
 display_name = "罐装汽水"
 category = 5
 base_value = 48
+description = "这是一个罐装汽水，它的品质是白。"
+model = ExtResource("1_7dyay")

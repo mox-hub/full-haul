@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://13w5ugs7a6xk"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_816p8"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_ejamx"]
 
 [resource]
@@ -9,3 +10,5 @@ display_name = "口服补液盐"
 category = 4
 base_value = 291
 boundary_note = "本品质最高"
+description = "这是一个口服补液盐，它的品质是白。"
+model = ExtResource("1_816p8")

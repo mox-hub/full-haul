@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bsrrysruproli"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_egvf6"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_rh334"]
 
 [resource]
 script = ExtResource("1_egvf6")
@@ -10,3 +11,6 @@ category = 0
 rarity = 2
 base_value = 18742
 grid_size = Vector2i(2, 1)
+description = "这是一个骨雕棋子组，它的品质是紫。"
+model = ExtResource("1_rh334")
+model_scale = 1.3

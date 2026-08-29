@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://jfgs6pg1fsln"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_7anhn"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_imrd5"]
 
 [resource]
 script = ExtResource("1_7anhn")
@@ -9,3 +10,6 @@ display_name = "塑料板"
 rarity = 1
 base_value = 7284
 grid_size = Vector2i(2, 1)
+description = "这是一个塑料板，它的品质是蓝。"
+model = ExtResource("1_imrd5")
+model_scale = 1.3

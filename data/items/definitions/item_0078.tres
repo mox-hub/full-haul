@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://l44tpfm8fhk2"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_hl40x"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_m2vip"]
 
 [resource]
 script = ExtResource("1_hl40x")
@@ -10,3 +11,6 @@ category = 4
 rarity = 3
 base_value = 126843
 grid_size = Vector2i(1, 2)
+description = "这是一个手术激光器，它的品质是金。"
+model = ExtResource("1_m2vip")
+model_scale = 1.3

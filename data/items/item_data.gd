@@ -111,8 +111,13 @@ const CATEGORY_NAMES := {
 ## 图标贴图
 @export var icon: Texture2D
 
-## 3D 模型（.obj 导入为 Mesh 资源后关联）
+## 3D 模型（.obj 导入为 Mesh 资源后关联；当前 assets/models/ 为本地资产
+## 不入库，缺文件时消费方按 null 回退占位表现）
 @export var model: Mesh
+
+## 模型缩放比例（渲染时对绑定模型做统一等比缩放的乘数；1.0 = 原始尺寸，
+## 用于模型体积与占格大小观感不符时调整）
+@export var model_scale: float = 1.0
 
 
 ## 运行期定义 ID（与既有 item_definition 字典/DB 主键口径一致）。

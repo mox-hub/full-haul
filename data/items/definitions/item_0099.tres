@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b8vaeygfwpjoq"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_mxiv5"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_uptdk"]
 
 [resource]
 script = ExtResource("1_mxiv5")
@@ -9,3 +10,6 @@ display_name = "家庭装矿泉水"
 category = 5
 base_value = 480
 grid_size = Vector2i(2, 1)
+description = "这是一个家庭装矿泉水，它的品质是白。"
+model = ExtResource("1_uptdk")
+model_scale = 1.3

@@ -15,6 +15,8 @@
 ##     保证注册表与引用关系不漂移）。
 ##   - 字段映射：rarity 白/蓝/紫/金/红 -> common/uncommon/rare/epic/legendary；
 ##     size "WxH" -> grid_size；堆叠数量 -> max_stack；boundary -> boundary_note。
+##   - 美术绑定（按占格大小选型，"大概合适"档位）与描述台词为生成默认值；
+##     已有手调值不覆盖（见 _apply_generated_defaults 的保留策略）。
 
 extends SceneTree
 
@@ -24,6 +26,26 @@ const RegistryScript := preload("res://addons/yard/registry.gd")
 const CSV_PATH := "res://data/items/source/物资数据库_初版整合清单.csv"
 const DEFINITIONS_DIR := "res://data/items/definitions"
 const REGISTRY_PATH := "res://data/items/item_registry.tres"
+
+## 可绑定模型目录（本地资产，不入库；缺文件时 model 装载为 null，
+## 消费方按 null 回退占位表现）
+const MODEL_DIR := "res://assets/models/warehouse/"
+
+## 描述台词模板（品质用中文显示名）
+const DESCRIPTION_TEMPLATE := "这是一个%s，它的品质是%s。"
+
+## 占格大小 -> 绑定模型与缩放比例（键为 normalize 后的 [短边, 长边]）。
+## 模型尺寸语义（米）：box-1-1-1 = 1x1x1；box-05-05-1 = 0.5x0.5x1 长条；
+## box-05-05-05 = 0.5 立方；Cylinder025-1 = ⌀0.25x1 圆桶；Sphere-025 = 球。
+## ground/wall 为场景件，不用于物品绑定。
+const MODEL_BINDING_RULES := {
+	Vector2i(1, 1): ["box-1-1-1.obj", 1.0],      # 单格立方
+	Vector2i(1, 2): ["box-05-05-1.obj", 1.3],    # 长条小件
+	Vector2i(1, 3): ["box-05-05-1.obj", 1.9],    # 长条中件
+	Vector2i(1, 4): ["box-05-05-1.obj", 2.4],    # 长条大件
+	Vector2i(2, 2): ["box-1-1-1.obj", 1.7],      # 大方块
+	Vector2i(2, 3): ["box-1-1-1.obj", 2.2],      # 最大档
+}
 
 ## 源表 rarity -> ItemData.Rarity
 const RARITY_MAP := {
@@ -87,6 +109,7 @@ func _initialize() -> void:
 			errors.append("尺寸格式非法 %s（%s）" % [str(row[5]), item_id])
 		item.boundary_note = str(row[6])
 		item.max_stack = int(row[7])
+		_apply_generated_defaults(item, path)
 
 		var item_errors: Array = item.validate()
 		if not item_errors.is_empty():
@@ -129,6 +152,36 @@ func _initialize() -> void:
 
 	_verify(uid_by_string_id)
 	quit(0)
+
+
+## 应用生成默认值：描述台词 + 按占格大小的模型绑定与缩放比例。
+## 保留策略：已有手调值不覆盖——既有 description 非空 / model 非空 /
+## model_scale != 1.0 时优先沿用既有值（重复生成安全）。
+func _apply_generated_defaults(item, path: String) -> void:
+	var existing = null
+	if FileAccess.file_exists(path):
+		var loaded: Resource = load(path)
+		if loaded is ItemDataScript:
+			existing = loaded
+	# 描述台词（品质用中文显示名）
+	if existing != null and not existing.description.is_empty():
+		item.description = existing.description
+	else:
+		item.description = DESCRIPTION_TEMPLATE % [item.display_name,
+			ItemDataScript.RARITY_NAMES[item.rarity]]
+	# 模型绑定与缩放（按 normalize 后的 [短边, 长边] 占格选档）
+	var key := Vector2i(mini(item.grid_size.x, item.grid_size.y),
+		maxi(item.grid_size.x, item.grid_size.y))
+	var rule: Array = MODEL_BINDING_RULES.get(key, ["box-1-1-1.obj", 1.0])
+	if existing != null and existing.model != null:
+		item.model = existing.model
+	else:
+		var model_path := MODEL_DIR + str(rule[0])
+		item.model = load(model_path) if ResourceLoader.exists(model_path) else null
+	if existing != null and not is_equal_approx(existing.model_scale, 1.0):
+		item.model_scale = existing.model_scale
+	else:
+		item.model_scale = float(rule[1])
 
 
 ## 读取 CSV，跳过表头，返回数据行（每行为字段数组，已去引号/空白）。
@@ -269,6 +322,25 @@ func _verify(uid_by_string_id: Dictionary) -> void:
 	if first == null or first.display_name != "古代能源核心" or first.rarity_id() != "legendary":
 		push_error("自检失败：item_0001 装载/字段异常")
 		return
+	# 描述台词模板自检
+	if first.description != DESCRIPTION_TEMPLATE % ["古代能源核心", "红"]:
+		push_error("自检失败：item_0001 描述异常: %s" % first.description)
+		return
+	# 模型绑定/缩放自检（1x1 -> box-1-1-1@1.0；2x3 -> box-1-1-1@2.2；2x1 -> box-05-05-1@1.3）
+	var statue = reg.load_entry("item_0006")
+	if statue == null or not is_equal_approx(statue.model_scale, 2.2):
+		push_error("自检失败：item_0006 缩放异常: %s" % str(statue.model_scale if statue else -1))
+		return
+	if not is_equal_approx(reg.load_entry("item_0021").model_scale, 1.3):
+		push_error("自检失败：item_0021 缩放异常")
+		return
+	if ResourceLoader.exists(MODEL_DIR + "box-1-1-1.obj"):
+		if first.model == null or statue.model == null:
+			push_error("自检失败：本地模型存在但绑定装载为空")
+			return
+		print("模型绑定自检：item_0001/item_0006 均装载 Mesh（%s）" % first.model.get_class())
+	else:
+		print("模型绑定自检跳过：本地模型目录缺失（绑定引用已在 .tres 保留）")
 	var legendary_ids: Array[StringName] = reg.filter(&"rarity", 4) # LEGENDARY
 	if legendary_ids.is_empty() or not legendary_ids.has("item_0001"):
 		push_error("自检失败：rarity 属性索引查询异常")

@@ -10,6 +10,10 @@
 
 ## [未发布]
 
+### 新增
+
+- 物品模型绑定与描述台词：`ItemData` 新增 `model_scale` 缩放比例字段；生成器按占格大小自动绑定 `assets/models/warehouse/` 本地模型（1x1/2x2/2x3 -> box-1-1-1 @1.0/1.7/2.2，长条 1x2/1x3/1x4 -> box-05-05-1 @1.3/1.9/2.4，normalize 后短长边选档），全量 145 条 .tres 完成 ExtResource 绑定（模型为本地资产不入库，缺文件时 model 装载 null、消费方回退占位）；描述台词按「这是一个{{名称}}，它的品质是{{品质}}。」模板生成；生成器对手调值有保留策略（description 非空/model 非空/model_scale≠1 不覆盖）
+
 ### 变更
 
 - 主界面仓库场景支持滚轮缩放：WarehouseView 相机距离改为 dolly（进场推拉）× zoom（滚轮）复合驱动并统一收口到 `_apply_camera()`，新增 `set_zoom()/zoom()` 通道（单格 1.1 倍、限幅 0.55–1.7，围绕注视点等距缩放不改变视线方向）；大厅页 BaseArea 输入处理接入滚轮上/下事件驱动拉近拉远，并发布 UI_INTERACTED（scene_zoom）留痕（feat/warehouse-base-v1）

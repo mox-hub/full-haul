@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://p4vpwb3d2feg"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_4dl4u"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_quxp7"]
 
 [resource]
 script = ExtResource("1_4dl4u")
@@ -9,3 +10,5 @@ display_name = "瓶装水"
 category = 5
 base_value = 13
 boundary_note = "本品质最低"
+description = "这是一个瓶装水，它的品质是白。"
+model = ExtResource("1_quxp7")

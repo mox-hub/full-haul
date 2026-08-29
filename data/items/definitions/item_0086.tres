@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://f86aqhfe7tox"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_0g04w"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_2ut2a"]
 
 [resource]
 script = ExtResource("1_0g04w")
@@ -10,3 +11,6 @@ category = 4
 rarity = 1
 base_value = 17486
 grid_size = Vector2i(1, 2)
+description = "这是一个输液套装，它的品质是蓝。"
+model = ExtResource("1_2ut2a")
+model_scale = 1.3

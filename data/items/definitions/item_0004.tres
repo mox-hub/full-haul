@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bgqyujiioq11x"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_did7x"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_m37ch"]
 
 [resource]
@@ -10,3 +11,6 @@ category = 0
 rarity = 4
 base_value = 1284000
 grid_size = Vector2i(2, 2)
+description = "这是一个失落王冠，它的品质是红。"
+model = ExtResource("1_did7x")
+model_scale = 1.7

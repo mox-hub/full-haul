@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dkjdvubgmkrue"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_0nsag"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_h0nml"]
 
 [resource]
@@ -9,3 +10,5 @@ display_name = "消毒喷雾"
 category = 4
 rarity = 1
 base_value = 7842
+description = "这是一个消毒喷雾，它的品质是蓝。"
+model = ExtResource("1_0nsag")

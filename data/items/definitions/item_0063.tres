@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b1m88oqijjvx5"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_6ybox"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_nhsu2"]
 
 [resource]
 script = ExtResource("1_6ybox")
@@ -11,3 +12,6 @@ rarity = 2
 base_value = 21384
 grid_size = Vector2i(2, 1)
 boundary_note = "本品质最低"
+description = "这是一个无线电钻，它的品质是紫。"
+model = ExtResource("1_nhsu2")
+model_scale = 1.3

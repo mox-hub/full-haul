@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dmgsqrc5y3nn6"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_813r0"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_o3rlg"]
 
 [resource]
 script = ExtResource("1_813r0")
@@ -9,3 +10,6 @@ display_name = "手巾"
 category = 6
 base_value = 78
 grid_size = Vector2i(1, 2)
+description = "这是一个手巾，它的品质是白。"
+model = ExtResource("1_o3rlg")
+model_scale = 1.3

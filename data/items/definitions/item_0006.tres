@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bri6qqqcybgly"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_e4x10"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_qcrqi"]
 
 [resource]
@@ -11,3 +12,6 @@ rarity = 3
 base_value = 348625
 grid_size = Vector2i(2, 3)
 boundary_note = "本品质最高"
+description = "这是一个鎏金雕像，它的品质是金。"
+model = ExtResource("1_e4x10")
+model_scale = 2.2

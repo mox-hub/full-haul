@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cb3kajdrew35j"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_1bipv"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_206cx"]
 
 [resource]
@@ -8,3 +9,5 @@ item_id = "0053"
 display_name = "碎屏手机"
 category = 2
 base_value = 173
+description = "这是一个碎屏手机，它的品质是白。"
+model = ExtResource("1_1bipv")

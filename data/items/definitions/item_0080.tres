@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c0okgjm2m1fwl"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_oy5kn"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_ys5gj"]
 
 [resource]
 script = ExtResource("1_oy5kn")
@@ -11,3 +12,6 @@ rarity = 2
 base_value = 49718
 grid_size = Vector2i(2, 2)
 boundary_note = "本品质最高"
+description = "这是一个诊断试剂盒，它的品质是紫。"
+model = ExtResource("1_ys5gj")
+model_scale = 1.7

@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://csxu66mijbp0g"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_4vacf"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_53tbr"]
 
 [resource]
@@ -11,3 +12,6 @@ rarity = 2
 base_value = 21684
 grid_size = Vector2i(2, 2)
 boundary_note = "本品质最低"
+description = "这是一个便携氧气瓶，它的品质是紫。"
+model = ExtResource("1_4vacf")
+model_scale = 1.7

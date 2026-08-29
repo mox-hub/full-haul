@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://busc8plmn53sn"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_ub18w"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_yarh8"]
 
 [resource]
 script = ExtResource("1_ub18w")
@@ -10,3 +11,5 @@ category = 1
 rarity = 1
 base_value = 2831
 boundary_note = "本品质最低"
+description = "这是一个家庭相册，它的品质是蓝。"
+model = ExtResource("1_yarh8")

@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://noqltkga10go"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_a618q"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_e1j2c"]
 
 [resource]
@@ -10,3 +11,6 @@ category = 6
 rarity = 1
 base_value = 16841
 grid_size = Vector2i(1, 2)
+description = "这是一个皮质腰带，它的品质是蓝。"
+model = ExtResource("1_a618q")
+model_scale = 1.3

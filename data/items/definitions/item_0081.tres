@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cwe5iqfedvlb7"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2wb4y"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_ghlqn"]
 
 [resource]
 script = ExtResource("1_2wb4y")
@@ -9,3 +10,5 @@ display_name = "缝合工具组"
 category = 4
 rarity = 2
 base_value = 45287
+description = "这是一个缝合工具组，它的品质是紫。"
+model = ExtResource("1_ghlqn")

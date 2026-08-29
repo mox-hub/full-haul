@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://xwwbw8hljbff"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_hfxhq"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_wjtke"]
 
 [resource]
@@ -8,3 +9,5 @@ item_id = "0098"
 display_name = "食用油瓶"
 category = 5
 base_value = 523
+description = "这是一个食用油瓶，它的品质是白。"
+model = ExtResource("1_hfxhq")

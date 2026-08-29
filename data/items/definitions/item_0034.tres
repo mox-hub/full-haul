@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://vlm1ysyktlnl"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_88j5n"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_rubih"]
 
 [resource]
 script = ExtResource("1_88j5n")
@@ -9,3 +10,6 @@ display_name = "私人通讯录"
 category = 1
 base_value = 74
 grid_size = Vector2i(1, 2)
+description = "这是一个私人通讯录，它的品质是白。"
+model = ExtResource("1_rubih")
+model_scale = 1.3

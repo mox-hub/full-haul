@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://veskmlfjl6to"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_be400"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_qtc4h"]
 
 [resource]
@@ -9,3 +10,5 @@ display_name = "创伤敷料"
 category = 4
 rarity = 1
 base_value = 5184
+description = "这是一个创伤敷料，它的品质是蓝。"
+model = ExtResource("1_be400")

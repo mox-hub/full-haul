@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bu0n2qauhx2xq"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_o76ys"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_ytjko"]
 
 [resource]
 script = ExtResource("1_o76ys")
@@ -9,3 +10,5 @@ display_name = "手动电钻"
 category = 3
 rarity = 1
 base_value = 4897
+description = "这是一个手动电钻，它的品质是蓝。"
+model = ExtResource("1_ytjko")

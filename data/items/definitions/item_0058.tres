@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dmrndr0r3j5cs"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_535ic"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_awxoj"]
 
 [resource]
 script = ExtResource("1_535ic")
@@ -10,3 +11,5 @@ category = 3
 rarity = 3
 base_value = 84219
 boundary_note = "本品质最低"
+description = "这是一个激光测距仪，它的品质是金。"
+model = ExtResource("1_awxoj")

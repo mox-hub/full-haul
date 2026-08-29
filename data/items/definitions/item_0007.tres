@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://chpbyy3txhpu8"]
 
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-1-1-1.obj" id="1_qos6h"]
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_y3bg5"]
 
 [resource]
@@ -10,3 +11,6 @@ category = 0
 rarity = 3
 base_value = 312846
 grid_size = Vector2i(2, 3)
+description = "这是一个珍藏油画，它的品质是金。"
+model = ExtResource("1_qos6h")
+model_scale = 2.2

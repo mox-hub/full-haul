@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://clvrsh4mpitpq"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_fjg2f"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_pmiir"]
 
 [resource]
 script = ExtResource("1_fjg2f")
@@ -10,3 +11,6 @@ category = 2
 rarity = 2
 base_value = 41583
 grid_size = Vector2i(2, 1)
+description = "这是一个游戏主机，它的品质是紫。"
+model = ExtResource("1_pmiir")
+model_scale = 1.3

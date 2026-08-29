@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://kp4kwfctoxu"]
 
 [ext_resource type="Script" path="res://data/items/item_data.gd" id="1_3k1gr"]
+[ext_resource type="ArrayMesh" path="res://assets/models/warehouse/box-05-05-1.obj" id="1_avqy3"]
 
 [resource]
 script = ExtResource("1_3k1gr")
@@ -11,3 +12,6 @@ rarity = 2
 base_value = 11286
 grid_size = Vector2i(1, 2)
 boundary_note = "本品质最低"
+description = "这是一个限量纪念册，它的品质是紫。"
+model = ExtResource("1_avqy3")
+model_scale = 1.3
