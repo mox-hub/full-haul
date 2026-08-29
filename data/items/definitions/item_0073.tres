@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dc7pcau7m22xp"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_5ddq6"]
+
+[resource]
+script = ExtResource("1_5ddq6")
+item_id = "0073"
+display_name = "钝口剪钳"
+category = 3
+base_value = 89

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b040x5vadwdil"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_cfvrr"]
+
+[resource]
+script = ExtResource("1_cfvrr")
+item_id = "0140"
+display_name = "金属碎料"
+rarity = 1
+base_value = 3018
+boundary_note = "本品质最低"

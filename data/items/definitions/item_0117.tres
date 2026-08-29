@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://wcjp5bie3p4g"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_4xha1"]
+
+[resource]
+script = ExtResource("1_4xha1")
+item_id = "0117"
+display_name = "奢侈皮包"
+category = 6
+rarity = 3
+base_value = 112684
+grid_size = Vector2i(1, 2)
+boundary_note = "本品质最低"

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://csxu66mijbp0g"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_53tbr"]
+
+[resource]
+script = ExtResource("1_53tbr")
+item_id = "0084"
+display_name = "便携氧气瓶"
+category = 4
+rarity = 2
+base_value = 21684
+grid_size = Vector2i(2, 2)
+boundary_note = "本品质最低"

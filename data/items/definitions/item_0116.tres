@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bpfs8cqkqtwq0"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_mlkda"]
+
+[resource]
+script = ExtResource("1_mlkda")
+item_id = "0116"
+display_name = "高端旅行包"
+category = 6
+rarity = 3
+base_value = 221678
+grid_size = Vector2i(2, 2)
+boundary_note = "本品质最高"

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c718pp7j2tq2l"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_eluvx"]
+
+[resource]
+script = ExtResource("1_eluvx")
+item_id = "0033"
+display_name = "旧报纸剪报"
+category = 1
+base_value = 148
+boundary_note = "本品质最高"

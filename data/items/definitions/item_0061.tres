@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bt3skb5w1cex0"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_8ksb7"]
+
+[resource]
+script = ExtResource("1_8ksb7")
+item_id = "0061"
+display_name = "扭力扳手"
+category = 3
+rarity = 2
+base_value = 35918
+grid_size = Vector2i(1, 2)

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://4xoau3dpp436"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_ikl71"]
+
+[resource]
+script = ExtResource("1_ikl71")
+item_id = "0065"
+display_name = "压力表"
+category = 3
+rarity = 1
+base_value = 17248

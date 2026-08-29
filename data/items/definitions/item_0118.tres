@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bor3q565cku2w"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_7qy5c"]
+
+[resource]
+script = ExtResource("1_7qy5c")
+item_id = "0118"
+display_name = "高端保温杯"
+category = 6
+rarity = 2
+base_value = 48917
+grid_size = Vector2i(1, 2)
+boundary_note = "本品质最高"

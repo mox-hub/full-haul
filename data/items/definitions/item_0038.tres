@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cxqgwpap4ytio"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_q5hol"]
+
+[resource]
+script = ExtResource("1_q5hol")
+item_id = "0038"
+display_name = "高端无人机"
+category = 2
+rarity = 3
+base_value = 214572
+grid_size = Vector2i(2, 2)

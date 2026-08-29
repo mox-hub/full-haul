@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bsgl6mypbrbdb"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_4qmo2"]
+
+[resource]
+script = ExtResource("1_4qmo2")
+item_id = "0052"
+display_name = "二手计算器"
+category = 2
+base_value = 368
+boundary_note = "本品质最高"

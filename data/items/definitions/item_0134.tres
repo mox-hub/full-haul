@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://xhp5ptt7iqkm"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_f5ttq"]
+
+[resource]
+script = ExtResource("1_f5ttq")
+item_id = "0134"
+display_name = "塑料梳子"
+category = 6
+base_value = 26

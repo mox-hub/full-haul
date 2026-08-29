@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dhly5tsktwoa0"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_dkqjt"]
+
+[resource]
+script = ExtResource("1_dkqjt")
+item_id = "0008"
+display_name = "青铜兽首"
+category = 0
+rarity = 3
+base_value = 214000
+grid_size = Vector2i(2, 2)

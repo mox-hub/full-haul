@@ -15,6 +15,13 @@ func load_item_definitions() -> Dictionary:
 	return {}
 
 
+## 物品定义 Resource 表（definition_id -> ItemData，Resource 化数据源）。
+## 后端未提供 Resource 化数据时返回空 Dictionary，消费方回退
+## load_item_definitions() 字典视图。
+func load_item_data() -> Dictionary:
+	return {}
+
+
 ## 按 definition_id 读取单个道具/藏品定义；不存在返回空 Dictionary。
 func get_item_definition(definition_id: String) -> Dictionary:
 	return {}

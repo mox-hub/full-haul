@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cwe5iqfedvlb7"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2wb4y"]
+
+[resource]
+script = ExtResource("1_2wb4y")
+item_id = "0081"
+display_name = "缝合工具组"
+category = 4
+rarity = 2
+base_value = 45287

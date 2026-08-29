@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://yqnmo5noxnc4"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_bgbrd"]
+
+[resource]
+script = ExtResource("1_bgbrd")
+item_id = "0130"
+display_name = "旧T恤"
+category = 6
+base_value = 187
+grid_size = Vector2i(1, 2)
+boundary_note = "本品质最高"

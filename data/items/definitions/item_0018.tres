@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bf4wqbliwp1o"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_qn0w6"]
+
+[resource]
+script = ExtResource("1_qn0w6")
+item_id = "0018"
+display_name = "旧胶片相机"
+category = 0
+rarity = 1
+base_value = 8642
+grid_size = Vector2i(2, 1)

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bkagu44r88hlk"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_1ddq5"]
+
+[resource]
+script = ExtResource("1_1ddq5")
+item_id = "0101"
+display_name = "即食肉干"
+category = 5
+base_value = 367

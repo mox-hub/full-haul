@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://d284ookdx5aev"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_asjrs"]
+
+[resource]
+script = ExtResource("1_asjrs")
+item_id = "0109"
+display_name = "果汁盒"
+category = 5
+base_value = 97

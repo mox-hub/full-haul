@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://biobc3suvpdgv"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_gtolh"]
+
+[resource]
+script = ExtResource("1_gtolh")
+item_id = "0031"
+display_name = "折叠旅行地图"
+category = 1
+rarity = 1
+base_value = 8519
+grid_size = Vector2i(3, 1)

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b40iv1v4hdxvv"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_5io8j"]
+
+[resource]
+script = ExtResource("1_5io8j")
+item_id = "0143"
+display_name = "碎石"
+base_value = 46

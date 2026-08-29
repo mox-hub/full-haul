@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c630asxp0e10u"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_4pgdd"]
+
+[resource]
+script = ExtResource("1_4pgdd")
+item_id = "0107"
+display_name = "速溶咖啡"
+category = 5
+base_value = 148

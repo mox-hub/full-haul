@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://p1vtnv7akasq"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_j5gxg"]
+
+[resource]
+script = ExtResource("1_j5gxg")
+item_id = "0026"
+display_name = "遗嘱原件"
+category = 1
+rarity = 2
+base_value = 36528

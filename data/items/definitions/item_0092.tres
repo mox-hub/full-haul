@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://uio1776sd8m1"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_22nl0"]
+
+[resource]
+script = ExtResource("1_22nl0")
+item_id = "0092"
+display_name = "一次性注射器"
+category = 4
+base_value = 156

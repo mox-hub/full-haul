@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cbp816lc8k1mt"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_fuv0h"]
+
+[resource]
+script = ExtResource("1_fuv0h")
+item_id = "0144"
+display_name = "木料"
+base_value = 29
+grid_size = Vector2i(1, 2)

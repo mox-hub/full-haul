@@ -10,16 +10,17 @@
 ##     后在 ITEM_MODEL_PATHS 登记即自动替换
 ##
 ## 用法：
-##   var view := ModelPreviewView.create("item_scifi_pistol", 56.0)
+##   var view := ModelPreviewView.create("item_0057", 56.0)
 ##   view.clicked.connect(_on_preview_clicked)
 ##   背包格等锚定布局场景：create 后把 custom_minimum_size 清零再用锚点拉伸。
 
 extends SubViewportContainer
 class_name ModelPreviewView
 
-## 物品定义 → 模型资源路径（新增 3D 物品在此登记）
+## 物品定义（物品注册表 string_id）→ 模型资源路径（新增 3D 物品在此登记；
+## 物品种子已 Resource 化，登记键须为注册表真实 item_XXXX）
 const ITEM_MODEL_PATHS := {
-	"item_scifi_pistol": "res://assets/models/han_gun/han_gun.obj",
+	"item_0057": "res://assets/models/han_gun/han_gun.obj",
 }
 
 ## 占位正方体边长（米）：无专属模型的物品统一用它兜底

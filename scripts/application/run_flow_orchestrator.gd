@@ -506,7 +506,7 @@ func _plan_container_items(entry: Dictionary, state: RunState) -> Array:
 		grid.place("plan-%d" % i, size, pos)
 		items.append({
 			"instance_id": "%s-%s-item-%d" % [state.run_id, container_id, i + 1],
-			"definition_id": str(def.get("definition_id", "item_battery")),
+			"definition_id": str(def.get("definition_id", "item_0001")),
 			"rarity": str(def.get("rarity", "common")),
 			"value": int(def.get("value", 40)),
 			"size": size,
@@ -666,14 +666,14 @@ func _container_plan_entry(container_id: String) -> Dictionary:
 
 ## 挑选一件物品定义用于搜索产出（配置数据单一来源 INV-16）。
 ## 按已完成容器数轮转配置数据中的定义（确定性，不引入随机）；配置未加载时
-## 回退内置 item_battery。
+## 回退内置 item_0001（物品注册表首条）。
 func _nth_item_definition(index: int) -> Dictionary:
 	var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
 	if not defs.is_empty():
 		var keys: Array = defs.keys()
 		return defs[keys[index % keys.size()]]
-	return {"definition_id": "item_battery", "rarity": "common",
-		"value": 40, "width": 1, "height": 1}
+	return {"definition_id": "item_0001", "rarity": "legendary",
+		"value": 15846000, "width": 1, "height": 1}
 
 
 ## 用例：开始撤离读条（IN_RUN_EXTRACTABLE -> EXTRACTING）。

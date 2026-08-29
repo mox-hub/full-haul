@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b1v1mb1vy6f5b"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2vq4v"]
+
+[resource]
+script = ExtResource("1_2vq4v")
+item_id = "0072"
+display_name = "破损卷尺"
+category = 3
+base_value = 146

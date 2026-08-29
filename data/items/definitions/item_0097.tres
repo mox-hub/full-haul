@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bigu722litkji"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_icago"]
+
+[resource]
+script = ExtResource("1_icago")
+item_id = "0097"
+display_name = "密封谷物袋"
+category = 5
+base_value = 607
+grid_size = Vector2i(1, 2)

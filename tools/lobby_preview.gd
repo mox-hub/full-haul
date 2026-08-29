@@ -23,7 +23,7 @@ func _on_frame() -> void:
 		0:
 			if _frames == 12 and lobby.visible:
 				_save("lobby_preview_home.png")
-			## 仓库 3D 预览验证：开弹窗前直接造「科幻手枪 + 电池」塞入仓库
+			## 仓库 3D 预览验证：开弹窗前直接造「气动扳手(han_gun 演示模型) + 瓶装水 + 鎏金雕像」塞入仓库
 			if _frames == 14 and lobby.visible:
 				_seed_warehouse_preview()
 			## 叠层物热点点击回放：命中货架 A → 仓库弹窗
@@ -101,9 +101,9 @@ func _seed_warehouse_preview() -> void:
 	var profile := orch.current_profile()
 	if inv == null or profile == null:
 		return
-	inv.create_item("preview_pistol_w", "item_scifi_pistol")
-	inv.create_item("preview_battery_w", "item_battery")
-	inv.create_item("preview_ammobox_w", "item_ammobox")
+	inv.create_item("preview_pistol_w", "item_0057")
+	inv.create_item("preview_battery_w", "item_0115")
+	inv.create_item("preview_ammobox_w", "item_0006")
 	for id in ["preview_pistol_w", "preview_battery_w", "preview_ammobox_w"]:
 		if not profile.warehouse_item_ids.has(id):
 			profile.warehouse_item_ids.append(id)
@@ -111,7 +111,7 @@ func _seed_warehouse_preview() -> void:
 	orch._repos.profile.save(profile)
 
 
-## 仓库块点击回放：直接触发仓库画布首个物品（科幻手枪）的点击 → 3D 大图。
+## 仓库块点击回放：直接触发仓库画布首个物品（气动扳手）的点击 → 3D 大图。
 func _click_first_model_preview(lobby: Node) -> void:
 	(lobby.warehouse_board as GridBoard).item_clicked.emit("preview_pistol_w")
 
@@ -125,7 +125,7 @@ func _seed_backpack_preview(match_page: Node) -> void:
 	if inv == null:
 		return
 	if inv.get_item("preview_pistol_b") == null:
-		inv.create_item("preview_pistol_b", "item_scifi_pistol")
+		inv.create_item("preview_pistol_b", "item_0057")
 	var placed: bool = inv.place_item("preview_pistol_b",
 			GridInventory.OwnerType.BACKPACK, Vector2i.ZERO)
 	print("backpack preview placed: ", placed)

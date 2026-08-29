@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bu0n2qauhx2xq"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_o76ys"]
+
+[resource]
+script = ExtResource("1_o76ys")
+item_id = "0069"
+display_name = "手动电钻"
+category = 3
+rarity = 1
+base_value = 4897

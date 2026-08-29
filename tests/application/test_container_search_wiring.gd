@@ -346,19 +346,19 @@ func test_warehouse_grid_placement() -> void:
 	assert_that(ghost_at).is_equal(Vector2i.ZERO)
 	assert_that(inv.get_item("ghost-item")).is_null()
 
-	## 真实例（3x3 弹药箱）入库：占据 first-fit 空位且不与占位块重叠
-	assert_that(inv.create_item("wh-ammobox", "item_ammobox")).is_not_null()
-	var at := orch.ensure_warehouse_placement("wh-ammobox")
+	## 真实例（2x3 鎏金雕像，物品注册表 item_0006）入库：占据 first-fit 空位且不与占位块重叠
+	assert_that(inv.create_item("wh-statue", "item_0006")).is_not_null()
+	var at := orch.ensure_warehouse_placement("wh-statue")
 	assert_that(at != Vector2i(-1, -1)).is_true()
 	var wh: GridInventory = inv.get_grid(GridInventory.OwnerType.WAREHOUSE)
-	assert_that(wh.size_of("wh-ammobox")).is_equal(Vector2i(3, 3))
+	assert_that(wh.size_of("wh-statue")).is_equal(Vector2i(2, 3))
 
 	## 拖拽重排到空角（INV-04 校验）
-	assert_that(orch.move_warehouse_item("wh-ammobox", Vector2i(5, 3))).is_true()
-	assert_that(wh.position_of("wh-ammobox")).is_equal(Vector2i(5, 3))
+	assert_that(orch.move_warehouse_item("wh-statue", Vector2i(5, 3))).is_true()
+	assert_that(wh.position_of("wh-statue")).is_equal(Vector2i(5, 3))
 	## 非法位置保持原位
-	assert_that(orch.move_warehouse_item("wh-ammobox", Vector2i(7, 5))).is_false()
-	assert_that(wh.position_of("wh-ammobox")).is_equal(Vector2i(5, 3))
+	assert_that(orch.move_warehouse_item("wh-statue", Vector2i(7, 5))).is_false()
+	assert_that(wh.position_of("wh-statue")).is_equal(Vector2i(5, 3))
 
 
 ## [Wiring] 旧用例兼容：search_and_carry_container 多件流程一次完成

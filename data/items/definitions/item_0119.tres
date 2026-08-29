@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bxabqodi1ujro"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_mo7hu"]
+
+[resource]
+script = ExtResource("1_mo7hu")
+item_id = "0119"
+display_name = "旅行行李箱"
+category = 6
+rarity = 2
+base_value = 42618
+grid_size = Vector2i(2, 2)

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://cb3kajdrew35j"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_206cx"]
+
+[resource]
+script = ExtResource("1_206cx")
+item_id = "0053"
+display_name = "碎屏手机"
+category = 2
+base_value = 173

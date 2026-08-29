@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://c6puv1ukh8mjr"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_vmd37"]
+
+[resource]
+script = ExtResource("1_vmd37")
+item_id = "0136"
+display_name = "通用零件"
+rarity = 1
+base_value = 16937
+boundary_note = "本品质最高"

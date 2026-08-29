@@ -15,6 +15,8 @@ class_name InMemoryDataStore
 
 
 ## ---- 配置数据（静态；对齐 item_definition/container_type/backpack_offer/container_tier_config）----
+## 物品定义 Resource 注册态（definition_id -> ItemData，源 data/items/item_registry.tres）
+var item_data_resources: Dictionary = {}
 var item_definitions: Dictionary = {}
 var container_types: Dictionary = {}
 var backpack_offers: Dictionary = {}
@@ -41,37 +43,17 @@ func ensure_profile() -> PlayerProfile:
 
 
 ## 种子化 V0.1 默认配置数据（切片 9：让内存后端可直接跑通功能链闭环）。
-## 单一来源 INV-16：item_definition / container_type / backpack_offer /
-## container_tier_config 四张配置表的最小语义种子（对齐 db/schema.sql 字段）。
+## 单一来源 INV-16：item_definition 经 ItemResourceCatalog 从物品注册表
+## （data/items/item_registry.tres）装载 ItemData 资源，同时导出字典兼容
+## 视图；container_type / backpack_offer / container_tier_config 为最小语义
+## 种子（对齐 db/schema.sql 字段）。
 ## 已在组合根装配时调用一次；仅当各表为空时才写入，不覆盖已注入的数据。
 func seed_v01_defaults() -> void:
+	if item_data_resources.is_empty():
+		item_data_resources = ItemResourceCatalog.load_all()
 	if item_definitions.is_empty():
-		item_definitions = {
-			"item_battery": {"definition_id": "item_battery", "category": "item",
-				"name": "电池", "rarity": "common", "width": 1, "height": 1,
-				"value": 40, "color_semantic": "gray"},
-			"item_medkit": {"definition_id": "item_medkit", "category": "item",
-				"name": "医疗包", "rarity": "uncommon", "width": 2, "height": 1,
-				"value": 120, "color_semantic": "red"},
-			"item_techchip": {"definition_id": "item_techchip", "category": "collectible",
-				"name": "科技芯片", "rarity": "rare", "width": 1, "height": 1,
-				"value": 300, "color_semantic": "blue"},
-			"item_scifi_pistol": {"definition_id": "item_scifi_pistol", "category": "item",
-				"name": "科幻手枪", "rarity": "rare", "width": 2, "height": 1,
-				"value": 350, "color_semantic": "gray"},
-			"item_goldenidol": {"definition_id": "item_goldenidol", "category": "collectible",
-				"name": "金像", "rarity": "epic", "width": 2, "height": 2,
-				"value": 900, "color_semantic": "gold"},
-			"item_waterbottle": {"definition_id": "item_waterbottle", "category": "item",
-				"name": "净水壶", "rarity": "uncommon", "width": 1, "height": 2,
-				"value": 90, "color_semantic": "cyan"},
-			"item_rifle": {"definition_id": "item_rifle", "category": "item",
-				"name": "突击步枪", "rarity": "rare", "width": 2, "height": 3,
-				"value": 600, "color_semantic": "gray"},
-			"item_ammobox": {"definition_id": "item_ammobox", "category": "item",
-				"name": "重型弹药箱", "rarity": "epic", "width": 3, "height": 3,
-				"value": 1100, "color_semantic": "red"},
-		}
+		for def_id: String in item_data_resources:
+			item_definitions[def_id] = item_data_resources[def_id].to_config_dict()
 	if container_types.is_empty():
 		container_types = {
 			"crate_wood": {"type_id": "crate_wood", "kind": "container",

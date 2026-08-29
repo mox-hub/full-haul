@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://k4mjxn8uvyx"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_g0tcm"]
+
+[resource]
+script = ExtResource("1_g0tcm")
+item_id = "0121"
+display_name = "品牌手提包"
+category = 6
+rarity = 2
+base_value = 28734
+grid_size = Vector2i(2, 2)

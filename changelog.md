@@ -33,8 +33,13 @@
 - WORD-40 局内页面重构（首页同款像素风）：顶部 HUD 改为三属性图标条——本局时间（沙漏+倒计时）/撤离目标（木箱+容器 x/N）/携带数（背包+件数）；撤离读条（金色进度条+剩余秒数）移至地图区底部显示；操作区改三枚圆形像素钮（搜索/撤离/完成，超时调试钮转为隐藏钩子，测试契约节点名不变）；底部新增背包+安全箱格阵（6+1 列×4 行），携带物品按品质色填入背包格；新增搜索弹窗——容器内部空间可视化（如 3x3/4x4 格），逐格扫描动画+品质色揭晓（纯表现层回放，领域侧逻辑不变），地图容器实体沿用可点击按钮契约（`%MapContainers`，完成态「已搜索」标记）（feat/lobby-home-ui）
 - WORD-40 像素 UI 管线共享化：调色板/品质色/按钮与格子样式助手提升至 PixelUiKit 单一来源（epic 品质色对齐示意草图为红色系），首页与局内共用；按钮补充禁用态样式；编排器新增 backpack_item_ids() 只读访问器（局内背包格按放置顺序渲染物品品质）（feat/lobby-home-ui）
 - 合并 bugfix/loadout-container-timer：入场货币校验/地图容器实体/双计时停滞修复（详见该分支条目）（feat/lobby-home-ui）
+- 内存后端种子：硬编码物品定义改为物品注册表全量装载（145 条 ItemData .tres）；`test_repository_provider`/`test_telemetry_wiring` 接线同步（后者配置与物品服务注入同源）
 
 ### 新增
+
+- 物品系统 Resource 化：新增 `ItemData` 定义资源（`data/items/item_data.gd`，类别/品质枚举 + 占格尺寸 + 堆叠数 + 品质极值备注 + `icon`/`model` 美术关联字段）；全量 145 条物资数据库落盘为 `data/items/definitions/item_*.tres`；新建 Yard Registry 注册表 `data/items/item_registry.tres`（string_id <-> UID 登记 + rarity/category 属性索引）；CSV 源表入库 `data/items/source/`（keep-import 不生成翻译），生成器 `tools/generate_item_data.gd` 幂等可重建
+- 数据链路改造：`IConfigDataRepository` 新增 `load_item_data()`；内存后端经新增 `ItemResourceCatalog` 从注册表装载 ItemData（Resource 优先、字典视图兼容 sqlite/测试桩）；`ItemDefinition` 新增 `from_resource()` 与 `max_stack`/`boundary_note`/`description` 字段；`ItemInventoryService` 装载链路 Resource 优先；编排器搜索产出兜底 ID 同步注册表首条 `item_0001`
+- db：`item_definition` 表新增 `max_stack`/`boundary_note`/`description` 列（schema.sql 全量形态 + 迁移 002 增量列），类别枚举扩为八类（collectible/intel/electronics/tool/medical/food/daily/material）
 
 - 物品 3D 模型预览管线（项目首个 3D 用例）：外部 OBJ 模型 HanGun（科幻手枪 LOWPOLY + 两张 BaseColor 贴图，导出缺失的 .mtl 按材质名补写）落盘 assets/models/han_gun/；新增 ModelPreviewView 组件（SubViewport 独立 World3D + 透明底 + 按 AABB 自动取景/长轴放平/慢速自转，定义→模型路径映射收编于组件 ITEM_MODEL_PATHS）与 ModelPreviewPopup 大图弹窗；仓库出售行与局内背包格对有映射的物品渲染旋转缩略图、点击弹 360° 大图，无映射物品保持品质色条；物品种子新增 item_scifi_pistol「科幻手枪」（rare/2×1/350）（feat/warehouse-base-v1）
 - AI 生图资产生产线（仓库基地视觉升级 M3）：docs/art/art-pipeline.md（等距视角/左上光源/概念图色板 token 的 prompt 模板、目录与命名规范、规格表、整备 checklist、迭代流程）与 tools/asset_check.gd headless 校验工具（命名/尺寸读 WarehouseView.DEFAULT_LAYOUT 单一来源/透明底与裁边/底图不透明/色板偏离度报告，不合格退出码 1 可挂 CI）（feat/warehouse-base-v1）
@@ -56,6 +61,7 @@
 ### 测试
 
 - 新增回归用例：0 货币已持有档位入场拦截、每局重复扣款、双确认防护（test_profile_loadout_wiring）；帧级浮点计时累积与余量复位（test_run_session_service/test_extract_service）；本局容器计划与按容器搜索幂等（test_container_search_wiring/test_telemetry_wiring）；地图容器实体 GUI 可点击（tests/integration/test_map_containers.gd，全局 EventBus 进程级单例下一局一套件）
+- 新增 `tests/domain/test_item_resource_definitions.gd`（9 用例：注册表完整性/字段抽样/枚举映射/from_resource 映射与旋转/字典回退一致性/属性索引分布/服务 Resource 装载链路）；全仓库按目录逐套件跑绿（domain/application/infrastructure/presentation/integration 0 失败）
 
 ### 新增
 

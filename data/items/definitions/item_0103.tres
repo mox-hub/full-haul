@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://coxksed2d13xv"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_x7b5r"]
+
+[resource]
+script = ExtResource("1_x7b5r")
+item_id = "0103"
+display_name = "自热米饭"
+category = 5
+base_value = 286

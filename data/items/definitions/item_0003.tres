@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b0jc4i0tcby2e"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2bhdf"]
+
+[resource]
+script = ExtResource("1_2bhdf")
+item_id = "0003"
+display_name = "密封圣遗物"
+category = 0
+rarity = 4
+base_value = 2943000

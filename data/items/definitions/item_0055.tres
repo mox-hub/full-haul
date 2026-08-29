@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://iy3bwonlf0nm"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2e7qp"]
+
+[resource]
+script = ExtResource("1_2e7qp")
+item_id = "0055"
+display_name = "损坏耳机"
+category = 2
+base_value = 18
+boundary_note = "本品质最低"

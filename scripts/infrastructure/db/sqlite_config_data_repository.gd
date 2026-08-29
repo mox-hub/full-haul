@@ -16,10 +16,13 @@ func _init(conn: DatabaseConnector) -> void:
 	_conn.open()
 
 
+const _ITEM_COLUMNS := "definition_id, category, name, rarity, width, height, value, stackable, effect_value, series, color_semantic, max_stack, boundary_note, description"
+
+
 func load_item_definitions() -> Dictionary:
 	var out := {}
 	for row in _conn.query(
-		"SELECT definition_id, category, name, rarity, width, height, value, stackable, effect_value, series, color_semantic FROM item_definition"
+		"SELECT %s FROM item_definition" % _ITEM_COLUMNS
 	):
 		out[str(row.get("definition_id", ""))] = _row_to_dict(row)
 	return out
@@ -27,7 +30,7 @@ func load_item_definitions() -> Dictionary:
 
 func get_item_definition(definition_id: String) -> Dictionary:
 	var rows := _conn.query(
-		"SELECT definition_id, category, name, rarity, width, height, value, stackable, effect_value, series, color_semantic FROM item_definition WHERE definition_id = ?",
+		"SELECT %s FROM item_definition WHERE definition_id = ?" % _ITEM_COLUMNS,
 		[definition_id]
 	)
 	if rows.is_empty():

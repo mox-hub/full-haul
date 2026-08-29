@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://da4g308cvebba"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_5dfva"]
+
+[resource]
+script = ExtResource("1_5dfva")
+item_id = "0113"
+display_name = "方便面"
+category = 5
+base_value = 34

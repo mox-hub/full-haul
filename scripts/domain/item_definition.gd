@@ -9,6 +9,8 @@
 ##     （架构原则 2）。
 ##   - 尺寸为正整数（架构 §5 约束）；旋转后占格由 orientation 计算
 ##     （INV-05 形状一致）。
+##   - 数据源双通道：ItemData 资源（.tres 注册态，from_resource）优先，
+##     字典配置（sqlite 行 / 测试桩，from_config）兼容。
 
 extends RefCounted
 class_name ItemDefinition
@@ -20,6 +22,12 @@ var width: int = 0
 var height: int = 0
 var value: int = 0
 var color_semantic: String = ""
+## 最大堆叠数（1 = 不可堆叠；ItemData.max_stack）
+var max_stack: int = 1
+## 品质内极值备注（ItemData.boundary_note）
+var boundary_note: String = ""
+## 展示描述（ItemData.description）
+var description: String = ""
 
 
 func _init(p_definition_id := "", p_name := "", p_rarity := "",
@@ -51,6 +59,25 @@ func is_valid() -> bool:
 	return width > 0 and height > 0
 
 
+## 从 ItemData 资源构建定义（Resource 化注册态单一来源）。
+## 数据非法（item_id 为空 / 尺寸非正整数）时返回 null。
+static func from_resource(data: ItemData) -> ItemDefinition:
+	if data == null or data.item_id.is_empty():
+		return null
+	var def := ItemDefinition.new(
+		data.definition_id(),
+		data.display_name,
+		data.rarity_id(),
+		data.grid_size.x,
+		data.grid_size.y,
+		data.base_value,
+		data.rarity_id())
+	def.max_stack = maxi(1, data.max_stack)
+	def.boundary_note = data.boundary_note
+	def.description = data.description
+	return def if def.is_valid() else null
+
+
 ## 从数据驱动配置字典构建定义；字段与 item_definition 配置表对齐（INV-16）。
 ## 尺寸非法（非正整数）或缺少必要字段时返回 null。
 static func from_config(data: Dictionary) -> ItemDefinition:
@@ -64,4 +91,7 @@ static func from_config(data: Dictionary) -> ItemDefinition:
 		int(data.get("height", 0)),
 		int(data.get("value", 0)),
 		str(data.get("color_semantic", "")))
+	def.max_stack = maxi(1, int(data.get("max_stack", 1)))
+	def.boundary_note = str(data.get("boundary_note", ""))
+	def.description = str(data.get("description", ""))
 	return def if def.is_valid() else null

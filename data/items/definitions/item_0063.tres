@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b1m88oqijjvx5"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_6ybox"]
+
+[resource]
+script = ExtResource("1_6ybox")
+item_id = "0063"
+display_name = "无线电钻"
+category = 3
+rarity = 2
+base_value = 21384
+grid_size = Vector2i(2, 1)
+boundary_note = "本品质最低"

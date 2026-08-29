@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bfljwotpkjh2e"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_hsi0e"]
+
+[resource]
+script = ExtResource("1_hsi0e")
+item_id = "0074"
+display_name = "磨损扳手"
+category = 3
+base_value = 44
+grid_size = Vector2i(1, 2)

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://dvf0fxa62bp6e"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_5ubtg"]
+
+[resource]
+script = ExtResource("1_5ubtg")
+item_id = "0128"
+display_name = "手电筒"
+category = 6
+rarity = 1
+base_value = 4914

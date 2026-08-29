@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://vlm1ysyktlnl"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_88j5n"]
+
+[resource]
+script = ExtResource("1_88j5n")
+item_id = "0034"
+display_name = "私人通讯录"
+category = 1
+base_value = 74
+grid_size = Vector2i(1, 2)

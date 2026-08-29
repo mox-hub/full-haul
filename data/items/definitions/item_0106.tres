@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bnfr8a4ulv0uu"]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1_2sypw"]
+
+[resource]
+script = ExtResource("1_2sypw")
+item_id = "0106"
+display_name = "饮用水袋"
+category = 5
+base_value = 176
