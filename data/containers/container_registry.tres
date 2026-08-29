@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="Registry" format=3 uid="uid://c6pf1yu1hh8x1"]
+[gd_resource type="Resource" script_class="Registry" format=3 uid="uid://clbeqvhqcq6rp"]
 
 [ext_resource type="Script" path="res://addons/yard/registry.gd" id="1_wshop"]
 
@@ -14,23 +14,47 @@ _scan_rulesets = Array[Dictionary]([{
 &"scan_regex_include": ""
 }])
 _uids_to_string_ids = Dictionary[StringName, StringName]({
+&"uid://3ypo14i56oyg": &"cooler_medical",
+&"uid://5rxr7c786e5u": &"supply_food",
 &"uid://b8nbtckegcpp3": &"crate_wood",
 &"uid://bk8uc6ld2o8kv": &"crate_metal",
-&"uid://dona136y5jguf": &"extract_heli"
+&"uid://bvf3xvyvxof03": &"ammo_crate",
+&"uid://c63q2b6i1arnd": &"wall_safe",
+&"uid://cmqvglftap8sy": &"tool_locker",
+&"uid://dona136y5jguf": &"extract_heli",
+&"uid://ro2q6ag6r8q1": &"carton_paper"
 })
 _string_ids_to_uids = Dictionary[StringName, StringName]({
+&"ammo_crate": &"uid://bvf3xvyvxof03",
+&"carton_paper": &"uid://ro2q6ag6r8q1",
+&"cooler_medical": &"uid://3ypo14i56oyg",
 &"crate_metal": &"uid://bk8uc6ld2o8kv",
 &"crate_wood": &"uid://b8nbtckegcpp3",
-&"extract_heli": &"uid://dona136y5jguf"
+&"extract_heli": &"uid://dona136y5jguf",
+&"supply_food": &"uid://5rxr7c786e5u",
+&"tool_locker": &"uid://cmqvglftap8sy",
+&"wall_safe": &"uid://c63q2b6i1arnd"
 })
 _property_index = Dictionary[StringName, Dictionary]({
 &"tier": {
 "C1": {
+&"carton_paper": true,
 &"crate_wood": true,
-&"extract_heli": true
+&"extract_heli": true,
+&"supply_food": true
+},
+"C2": {
+&"cooler_medical": true,
+&"tool_locker": true
 },
 "C3": {
 &"crate_metal": true
+},
+"C4": {
+&"ammo_crate": true
+},
+"C5": {
+&"wall_safe": true
 }
 }
 })

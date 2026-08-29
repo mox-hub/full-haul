@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ContainerData" format=3 uid="uid://ro2q6ag6r8q1"]
+
+[ext_resource type="Script" path="res://data/containers/container_data.gd" id="1_7vmkr"]
+
+[resource]
+script = ExtResource("1_7vmkr")
+container_id = "carton_paper"
+display_name = "文件纸箱"
+grid_size = Vector2i(2, 3)
+category_weights = {
+"collectible": 2.0,
+"intel": 12.0
+}

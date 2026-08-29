@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContainerData" format=3 uid="uid://bvf3xvyvxof03"]
+
+[ext_resource type="Script" path="res://data/containers/container_data.gd" id="1_irdbx"]
+
+[resource]
+script = ExtResource("1_irdbx")
+container_id = "ammo_crate"
+display_name = "军用弹药箱"
+tier = "C4"
+rarity_weights = {
+"common": 5,
+"epic": 25,
+"legendary": 10,
+"rare": 40,
+"uncommon": 20
+}
+category_weights = {
+"electronics": 4.0,
+"material": 2.0,
+"tool": 4.0
+}

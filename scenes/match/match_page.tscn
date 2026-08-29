@@ -31,13 +31,13 @@ offset_bottom = 1006.0
 texture_filter = 2
 offset_left = 24.0
 offset_top = 16.0
-offset_right = 600.0
+offset_right = 800.0
 offset_bottom = 46.0
 theme_override_colors/font_color = Color(0.604, 0.647, 0.741, 1)
 theme_override_font_sizes/font_size = 20
-text = "对局场景——点击容器进行搜索"
+text = "对局场景——点击容器搜索 · 长按拖动移动地图"
 
-[node name="MapScroll" type="ScrollContainer" parent="MapArea"]
+[node name="MapView" type="Control" parent="MapArea"]
 unique_name_in_owner = true
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -45,14 +45,14 @@ offset_left = 40.0
 offset_top = 64.0
 offset_right = -40.0
 offset_bottom = -40.0
-horizontal_scroll_mode = 0
+clip_contents = true
+mouse_filter = 0
 
-[node name="MapContainers" type="GridContainer" parent="MapArea/MapScroll"]
+[node name="MapContainers" type="Control" parent="MapArea/MapView"]
 unique_name_in_owner = true
-size_flags_horizontal = 3
-theme_override_constants/h_separation = 24
-theme_override_constants/v_separation = 24
-columns = 2
+offset_right = 1600.0
+offset_bottom = 2000.0
+mouse_filter = 2
 
 [node name="ActionRow" type="HBoxContainer" parent="."]
 anchor_right = 1.0

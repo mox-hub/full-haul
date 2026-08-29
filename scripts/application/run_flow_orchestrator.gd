@@ -86,6 +86,9 @@ var _item_pool: Array = []
 ## 容器 Resource 注册态缓存（container_id -> ContainerData，懒加载）
 var _container_data: Dictionary = {}
 
+## 地图容器刷新随机源（类型随机 + 位置随机；可注种子保证测试/回放确定性）
+var _map_rng := RandomNumberGenerator.new()
+
 ## 容器搜索分步流程的物品计划（container_id -> Array[Dictionary]：
 ## [{instance_id, definition_id, rarity, value, size, pos}]）。物品身份只在
 ## 编排器侧保管，表现层经 reveal/finish 用例逐件领取（INV-05 蒙版态不泄露）。
@@ -690,20 +693,72 @@ func _build_match_containers() -> void:
 			continue
 		types.append(entry)
 	var count := _match_container_count()
+	## 随机刷新：类型池扩充到 count 后整体打乱（各类型均摊、避免扎堆），
+	## 位置在地图场网格单元内随机抖动布点（避免重叠；同种子可复现，
+	## 见 set_map_seed）
+	var spots := _map_spawn_spots(count)
+	var type_pool: Array = []
+	if not types.is_empty():
+		while type_pool.size() < count:
+			type_pool.append_array(types)
+		for i in range(type_pool.size() - 1, 0, -1):
+			var j := _map_rng.randi_range(0, i)
+			var tmp: Dictionary = type_pool[i]
+			type_pool[i] = type_pool[j]
+			type_pool[j] = tmp
 	for i in count:
-		if types.is_empty():
+		var pos: Vector2 = spots[i]
+		if type_pool.is_empty():
 			_match_containers.append({
 				"container_id": "map-c-%02d" % (i + 1), "type_id": "",
-				"display_name": "容器", "tier": "C1", "grid_width": 3, "grid_height": 3})
+				"display_name": "容器", "tier": "C1", "grid_width": 3, "grid_height": 3,
+				"map_pos": pos})
 			continue
-		var entry: Dictionary = types[i % types.size()]
+		var entry: Dictionary = type_pool[i]
 		_match_containers.append({
 			"container_id": "map-c-%02d" % (i + 1),
 			"type_id": str(entry.get("type_id", "")),
 			"display_name": str(entry.get("display_name", "容器")),
 			"tier": str(entry.get("tier", "C1")),
 			"grid_width": int(entry.get("grid_width", 3)),
-			"grid_height": int(entry.get("grid_height", 3))})
+			"grid_height": int(entry.get("grid_height", 3)),
+			"map_pos": pos})
+
+
+## 地图刷新布点：把地图场划为 ceil(sqrt(n)) 列网格，逐格随机抖动，
+## 单元顺序随机打乱（_map_rng），返回 n 个 0..1 归一化坐标。
+func _map_spawn_spots(count: int) -> Array:
+	var spots: Array = []
+	if count <= 0:
+		return spots
+	var cols := int(ceil(sqrt(float(count))))
+	var rows := int(ceil(float(count) / cols))
+	var cells: Array = []
+	for y in rows:
+		for x in cols:
+			cells.append(Vector2(x, y))
+	## Fisher-Yates 打乱单元顺序（_map_rng）
+	for i in range(cells.size() - 1, 0, -1):
+		var j := _map_rng.randi_range(0, i)
+		var tmp: Vector2 = cells[i]
+		cells[i] = cells[j]
+		cells[j] = tmp
+	for i in count:
+		var cell: Vector2 = cells[i]
+		var center := (cell + Vector2(0.5, 0.5)) / Vector2(cols, rows)
+		var jitter := Vector2(
+			_map_rng.randf_range(-0.32, 0.32) / cols,
+			_map_rng.randf_range(-0.32, 0.32) / rows)
+		spots.append((center + jitter).clamp(Vector2.ZERO, Vector2.ONE))
+	return spots
+
+
+## 注入地图刷新随机种子（负值随机化）；测试确定性/回放用。
+func set_map_seed(seed_value: int) -> void:
+	if seed_value < 0:
+		_map_rng.randomize()
+	else:
+		_map_rng.seed = seed_value
 
 
 ## 本局地图容器数量（配置单一来源 INV-16；未加载/非法时回退 6）。

@@ -27,8 +27,9 @@ class_name GameConfig
 @export var required_completed_containers := 5
 
 ## 每局地图生成的可搜索容器数（AC-17 核心搜刮图形化；不少于解锁阈值，
-## 供「第 N 个容器」类验收路径可测）
-@export var match_container_count := 6
+## 供「第 N 个容器」类验收路径可测）。容器在地图场随机刷新（类型+位置），
+## 长按拖动平移地图查看全部。
+@export var match_container_count := 9
 
 ## 初始货币
 @export var initial_currency := 100000

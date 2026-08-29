@@ -239,7 +239,8 @@ func test_search_map_container_by_id_and_completed_guard() -> void:
 	var orch: RunFlowOrchestrator = parts["orch"]
 
 	_enter_run_with_backpack(orch)
-	assert_that(orch.match_containers().size()).is_equal(6)
+	# 默认配置 match_container_count（地图随机刷新；数量单一来源 INV-16）
+	assert_that(orch.match_containers().size()).is_equal(GameConfig.new().match_container_count)
 
 	## 指定地图容器搜索：完成该容器并携带产出
 	var result: Dictionary = orch.search_and_carry_container("map-c-01")

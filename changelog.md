@@ -12,6 +12,11 @@
 
 ### 新增
 
+- 容器扩档与地图随机刷新：容器种子从 3 种扩为 9 种（新增文件纸箱 C1 2x3 / 食品补给箱 C1 3x2 / 工具壁柜 C2 4x2 / 医疗冷藏箱 C2 3x3 / 军用弹药箱 C4 3x3 / 嵌墙保险柜 C5 2x2，六种均带品质/类型概率绑定落盘，文件纸箱偏情报、保险柜偏高稀有等）；编排器本局容器计划改为随机刷新——类型池打乱均摊抽取、位置在归一化地图场网格单元内抖动布点（新增 _map_rng + set_map_seed 可注种子，同种子计划完全一致，含确定性回归用例）；GameConfig.match_container_count 6→9
+- 对局地图场改造（查看更多容器 + 长按拖动）：地图区改为「裁剪视图 MapView + 1600×2000 大画布 MapContainers」——容器实体按刷新位置绝对布点，按下拖动平移地图（画布位置钳制在视口内），松手位移在点击半径内命中容器即打开搜索弹窗（实体按钮不消费鼠标，输入统一由地图视图处理）；已完成容器禁用标记契约不变；竖屏布局守卫为裁剪视图（clip_contents）子树增加通用豁免
+
+### 新增
+
 - 物品概率系统（搜索系统子系统）：新增 `ItemProbabilitySystem` 领域子系统——容器搜索产出按「品质 × 类型」权重加权随机抽取（权重语义：空表不分层、非空表未列出按 0 排除；随机源可注入固定种子保证测试确定性）；编排器容器物品计划改走概率系统，容器 Resource 显式绑定优先、空表回退共享 tier 权重表（container_tier_config）、池不可用回退确定性轮转；`ItemDefinition` 补 `category` 字段支撑类型维度
 - 容器 Resource 化：新增 `ContainerData` 定义资源（自身属性 kind/tier/格子尺寸/地图可用性 + 物品概率系统绑定 rarity_weights/category_weights + icon/model/model_scale 美术关联）；3 条种子容器落盘 `data/containers/definitions/`（木箱 C1 3x3 / 铁箱 C3 4x4 / 撤离点 2x2）；新建注册表 `data/containers/container_registry.tres`（string_id <-> UID + tier 属性索引）；生成器 `tools/generate_container_data.gd`；内存后端经新增 `ContainerResourceCatalog` 装载并导出 container_types 字典视图；`IConfigDataRepository` 新增 `load_container_data()`
 - 物品弹窗加载绑定模型：`ModelPreviewView` 模型解析升级为三级优先——物品注册态绑定（`ItemData.model` + `model_scale`，经组合根注入回调解耦，缩放参与取景/居中计算）→ 既有 `ITEM_MODEL_PATHS` 路径映射 → 品质色正方体占位

@@ -209,7 +209,8 @@ func test_match_containers_planned_per_run() -> void:
 
 	_enter_run(orch)
 	var containers: Array = orch.match_containers()
-	assert_that(containers.size()).is_equal(6)  # 默认配置 match_container_count
+	# 默认配置 match_container_count（地图随机刷新；数量单一来源 INV-16）
+	assert_that(containers.size()).is_equal(GameConfig.new().match_container_count)
 	var seen := {}
 	for entry in containers:
 		var cid := str(entry.get("container_id", ""))

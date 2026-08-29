@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ContainerData" format=3 uid="uid://3ypo14i56oyg"]
+
+[ext_resource type="Script" path="res://data/containers/container_data.gd" id="1_t8g7c"]
+
+[resource]
+script = ExtResource("1_t8g7c")
+container_id = "cooler_medical"
+display_name = "医疗冷藏箱"
+tier = "C2"
+rarity_weights = {
+"common": 45,
+"epic": 6,
+"legendary": 1,
+"rare": 18,
+"uncommon": 30
+}
+category_weights = {
+"food": 3.0,
+"medical": 10.0
+}

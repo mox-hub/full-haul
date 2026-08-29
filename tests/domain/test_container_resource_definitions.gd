@@ -15,11 +15,27 @@
 extends GdUnitTestSuite
 
 
-## [ContainerResourceCatalog] 注册表装载：3 条种子容器全部登记
+## [ContainerResourceCatalog] 注册表装载：9 条种子容器全部登记
 func test_registry_loads_all_containers() -> void:
 	var reg := ContainerResourceCatalog.load_registry()
 	assert_that(reg).is_not_null()
-	assert_that(reg.size()).is_equal(3)
+	assert_that(reg.size()).is_equal(9)
+
+
+## [ContainerData] 扩档容器的概率绑定经 .tres 持久化并生效
+func test_weighted_container_bindings() -> void:
+	var reg := ContainerResourceCatalog.load_registry()
+	## 文件纸箱：类型绑定以情报文件为主
+	var paper: ContainerData = reg.load_entry("carton_paper")
+	assert_that(paper).is_not_null()
+	assert_float(float(paper.category_weights.get("intel", 0.0))).is_equal(12.0)
+	## 嵌墙保险柜：品质绑定高稀有（C5 档）
+	var safe: ContainerData = reg.load_entry("wall_safe")
+	assert_float(float(safe.rarity_weights.get("epic", 0.0))).is_equal(40.0)
+	assert_float(float(safe.rarity_weights.get("legendary", 0.0))).is_equal(20.0)
+	## 木箱未显式绑定（空表继承共享 tier 权重表）
+	var wood: ContainerData = reg.load_entry("crate_wood")
+	assert_dict(wood.rarity_weights).is_empty()
 
 
 ## [ContainerData] 自身属性抽样：木箱（C1/3x3/普通容器）与撤离点（extract）
@@ -91,10 +107,10 @@ func test_binding_drives_probability_system() -> void:
 func test_memory_backend_seeds_from_registry() -> void:
 	var store := InMemoryDataStore.new()
 	store.seed_v01_defaults()
-	assert_int(store.container_data_resources.size()).is_equal(3)
-	assert_int(store.container_types.size()).is_equal(3)
+	assert_int(store.container_data_resources.size()).is_equal(9)
+	assert_int(store.container_types.size()).is_equal(9)
 	var wood_dict: Dictionary = store.container_types.get("crate_wood", {})
 	assert_str(str(wood_dict.get("tier"))).is_equal("C1")
 	assert_str(str(wood_dict.get("kind"))).is_equal("container")
 	var repo := MemoryConfigDataRepository.new(store)
-	assert_int(repo.load_container_data().size()).is_equal(3)
+	assert_int(repo.load_container_data().size()).is_equal(9)

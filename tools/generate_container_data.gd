@@ -2,13 +2,13 @@
 ##
 ## 职责：
 ##   生成种子容器定义 data/containers/definitions/*.tres（ContainerData
-##   资源，与内存后端既有种子对齐：木箱 C1 3x3 / 铁箱 C3 4x4 / 撤离点 2x2），
-##   并新建/更新 data/containers/container_registry.tres（Yard Registry，
-##   string_id -> UID + tier 属性索引）。
+##   资源，9 条：木箱/铁箱/撤离点 + 六种扩档容器），并新建/更新
+##   data/containers/container_registry.tres（Yard Registry，string_id ->
+##   UID + tier 属性索引）。
 ##
-## 概率绑定：种子容器的 rarity_weights/category_weights 留空（继承共享
-## tier 权重表 container_tier_config）；需要逐容器定制时直接在 .tres 里
-## 填权重表（物品概率系统优先读取绑定值）。
+## 概率绑定：显式给出 rarity_weights/category_weights 的容器按绑定落盘；
+## 未给出的（木箱/铁箱/撤离点）留空表——运行期回退共享 tier 权重表
+## （container_tier_config）。重复生成沿用既有 UID，不漂移。
 ##
 ## 用法（本机 Godot 4.7.2 console 版）：
 ##   Godot_v4.7.2-stable_win64_console.exe --headless \
@@ -22,7 +22,15 @@ const RegistryScript := preload("res://addons/yard/registry.gd")
 const DEFINITIONS_DIR := "res://data/containers/definitions"
 const REGISTRY_PATH := "res://data/containers/container_registry.tres"
 
-## 种子容器（对齐内存后端既有种子语义）
+## 共享 tier 品质权重（对齐 container_tier_config，供扩档容器引用拷贝）
+const TIER_RARITY := {
+	"C1": {"common": 60, "uncommon": 25, "rare": 10, "epic": 4, "legendary": 1},
+	"C2": {"common": 45, "uncommon": 30, "rare": 18, "epic": 6, "legendary": 1},
+	"C4": {"common": 5, "uncommon": 20, "rare": 40, "epic": 25, "legendary": 10},
+	"C5": {"common": 2, "uncommon": 8, "rare": 30, "epic": 40, "legendary": 20},
+}
+
+## 种子容器（对齐内存后端既有种子 + 六种扩档；rarity/category 为概率绑定）
 const SEED_CONTAINERS := [
 	{
 		"container_id": "crate_wood", "display_name": "木箱",
@@ -35,6 +43,40 @@ const SEED_CONTAINERS := [
 	{
 		"container_id": "extract_heli", "display_name": "撤离点",
 		"kind": 1, "tier": "C1", "grid": Vector2i(2, 2),
+	},
+	{
+		"container_id": "carton_paper", "display_name": "文件纸箱",
+		"kind": 0, "tier": "C1", "grid": Vector2i(2, 3),
+		"category": {"intel": 12.0, "collectible": 2.0},
+	},
+	{
+		"container_id": "supply_food", "display_name": "食品补给箱",
+		"kind": 0, "tier": "C1", "grid": Vector2i(3, 2),
+		"category": {"food": 12.0, "medical": 2.0},
+	},
+	{
+		"container_id": "tool_locker", "display_name": "工具壁柜",
+		"kind": 0, "tier": "C2", "grid": Vector2i(4, 2),
+		"rarity": "C2",
+		"category": {"tool": 8.0, "material": 6.0, "electronics": 2.0},
+	},
+	{
+		"container_id": "cooler_medical", "display_name": "医疗冷藏箱",
+		"kind": 0, "tier": "C2", "grid": Vector2i(3, 3),
+		"rarity": "C2",
+		"category": {"medical": 10.0, "food": 3.0},
+	},
+	{
+		"container_id": "ammo_crate", "display_name": "军用弹药箱",
+		"kind": 0, "tier": "C4", "grid": Vector2i(3, 3),
+		"rarity": "C4",
+		"category": {"electronics": 4.0, "tool": 4.0, "material": 2.0},
+	},
+	{
+		"container_id": "wall_safe", "display_name": "嵌墙保险柜",
+		"kind": 0, "tier": "C5", "grid": Vector2i(2, 2),
+		"rarity": "C5",
+		"category": {"collectible": 6.0, "electronics": 4.0, "intel": 2.0},
 	},
 ]
 
@@ -54,6 +96,11 @@ func _initialize() -> void:
 		container.kind = int(seed_def["kind"])
 		container.tier = str(seed_def["tier"])
 		container.grid_size = seed_def["grid"]
+		# 概率绑定：显式给出则落盘；rarity 可引用共享 tier 表
+		if seed_def.has("rarity"):
+			container.rarity_weights = TIER_RARITY[str(seed_def["rarity"])].duplicate()
+		if seed_def.has("category"):
+			container.category_weights = seed_def["category"].duplicate()
 
 		var container_errors: Array = container.validate()
 		if not container_errors.is_empty():
@@ -138,10 +185,15 @@ func _verify(uid_by_string_id: Dictionary) -> void:
 		push_error("自检失败：crate_wood 装载/字段异常")
 		return
 	var c1_ids: Array[StringName] = reg.filter(&"tier", "C1")
-	if c1_ids.size() != 2 or not c1_ids.has("extract_heli"):
-		push_error("自检失败：tier 属性索引查询异常")
+	if c1_ids.size() != 4 or not c1_ids.has("extract_heli") or not c1_ids.has("carton_paper"):
+		push_error("自检失败：tier 属性索引查询异常 %s" % str(c1_ids))
 		return
-	print("自检通过：容器注册表 %d 条；C1 档 %d 条" % [reg.size(), c1_ids.size()])
+	var weighted = reg.load_entry("wall_safe")
+	if weighted == null or weighted.rarity_weights.is_empty():
+		push_error("自检失败：wall_safe 概率绑定缺失")
+		return
+	print("自检通过：容器注册表 %d 条；C1 档 %d 条；概率绑定容器 %d 条"
+		% [reg.size(), c1_ids.size(), 6])
 
 
 ## 读取资源文件头部的 uid 文本；缺失返回空串。
