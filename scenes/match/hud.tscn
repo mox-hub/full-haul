@@ -8,66 +8,115 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1_hud")
 
-[node name="Panel" type="Panel" parent="."]
-anchors_preset = 10
+[node name="TopBar" type="Panel" parent="."]
+unique_name_in_owner = true
 anchor_right = 1.0
-offset_bottom = 420.0
-grow_horizontal = 2
+offset_left = 32.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = 116.0
 
-[node name="Margin" type="MarginContainer" parent="Panel"]
+[node name="Bar" type="HBoxContainer" parent="TopBar"]
+texture_filter = 2
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 8.0
+offset_right = -24.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 24
+theme_override_constants/separation = 14
 
-[node name="Column" type="VBoxContainer" parent="Panel/Margin"]
-theme_override_constants/separation = 18
+[node name="TimeBox" type="HBoxContainer" parent="TopBar/Bar"]
+size_flags_vertical = 4
+theme_override_constants/separation = 8
 
-[node name="ObjectiveLabel" type="Label" parent="Panel/Margin/Column"]
+[node name="TimeIcon" type="TextureRect" parent="TopBar/Bar/TimeBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+size_flags_vertical = 4
+texture_filter = 2
+
+[node name="MatchTimeLabel" type="Label" parent="TopBar/Bar/TimeBox"]
+unique_name_in_owner = true
+theme_override_colors/font_color = Color(0.165, 0.2, 0.282, 1)
 theme_override_font_sizes/font_size = 30
-text = "撤离目标：完成容器 0/5（锁定）"
-
-[node name="MatchTimeLabel" type="Label" parent="Panel/Margin/Column"]
-unique_name_in_owner = true
-theme_override_font_sizes/font_size = 24
 text = "本局剩余时间：--"
+vertical_alignment = 1
 
-[node name="HealthTitle" type="Label" parent="Panel/Margin/Column"]
-theme_override_font_sizes/font_size = 24
-text = "生命（占位 —— 战斗/生命域为未来方向）"
+[node name="ObjectiveBox" type="HBoxContainer" parent="TopBar/Bar"]
+size_flags_vertical = 4
+theme_override_constants/separation = 8
 
-[node name="HealthBlock" type="ColorRect" parent="Panel/Margin/Column"]
-custom_minimum_size = Vector2(0, 26)
+[node name="ObjectiveIcon" type="TextureRect" parent="TopBar/Bar/ObjectiveBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+size_flags_vertical = 4
+texture_filter = 2
+
+[node name="ObjectiveLabel" type="Label" parent="TopBar/Bar/ObjectiveBox"]
+unique_name_in_owner = true
+theme_override_colors/font_color = Color(0.165, 0.2, 0.282, 1)
+theme_override_font_sizes/font_size = 30
+text = "容器 0/5（锁定）"
+vertical_alignment = 1
+
+[node name="CarryBox" type="HBoxContainer" parent="TopBar/Bar"]
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="CarryIcon" type="TextureRect" parent="TopBar/Bar/CarryBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+size_flags_vertical = 4
+texture_filter = 2
+
+[node name="BackpackLabel" type="Label" parent="TopBar/Bar/CarryBox"]
+unique_name_in_owner = true
+theme_override_colors/font_color = Color(0.165, 0.2, 0.282, 1)
+theme_override_font_sizes/font_size = 30
+text = "携带 0 件"
+vertical_alignment = 1
+
+[node name="HudSpacer" type="Control" parent="TopBar/Bar"]
 size_flags_horizontal = 3
-color = Color(0.75, 0.2, 0.2, 1)
 
-[node name="BackpackLabel" type="Label" parent="Panel/Margin/Column"]
-unique_name_in_owner = true
-theme_override_font_sizes/font_size = 24
-autowrap_mode = 3
-text = "背包：携带物品 0 件（已携带入背包格子）"
+[node name="ExtractOverlay" type="Control" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 32.0
+offset_top = 948.0
+offset_right = -32.0
+offset_bottom = 1012.0
+grow_horizontal = 2
+mouse_filter = 2
 
-[node name="ExtractBarLabel" type="Label" parent="Panel/Margin/Column"]
+[node name="ExtractBarLabel" type="Label" parent="ExtractOverlay"]
 unique_name_in_owner = true
-theme_override_font_sizes/font_size = 24
-text = "撤离读条（视觉占位）"
 visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 28.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.98, 0.86, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.09, 0.13, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20
+text = "撤离读条：剩余 -- 秒"
 
-[node name="ExtractBar" type="ProgressBar" parent="Panel/Margin/Column"]
+[node name="ExtractBar" type="ProgressBar" parent="ExtractOverlay"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 40)
-size_flags_horizontal = 3
-modulate = Color(1, 0.82, 0.35, 1)
-min_value = 0.0
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 34.0
+offset_bottom = 58.0
+grow_horizontal = 2
 max_value = 100.0
 value = 100.0
 show_percentage = false
-visible = false

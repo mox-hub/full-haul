@@ -54,6 +54,9 @@ func _boot_framework() -> void:
 	## 物品定义来自配置数据仓储（数据驱动单一来源 INV-16）；背包/安全箱
 	## 两格在确认入场时按档位尺寸初始化。
 	var item_inventory := ItemInventoryService.new(repos.config_data, bus)
+	## 仓库格子（局外储物空间）：8×6 运行时格子，入库物品按定义尺寸 first-fit
+	## 摆放；位置为运行时状态，跨重启按入库顺序重排（位置持久化 TBD）。
+	item_inventory.setup_warehouse(8, 6)
 	## 切片 6：注入容器搜索服务（Loot / Container 域，AC-04/05/06/17/18）。
 	## 容器搜索子状态机驱动单个容器从 UNOPENED 到 COMPLETED；完成计数
 	## 幂等（INV-06）。品质揭晓耗时读取配置单一来源（INV-16）。
@@ -77,7 +80,9 @@ func _boot_framework() -> void:
 	var settlement_service := SettlementService.new(warehouse_service)
 	## 切片 9：注入遥测服务（Telemetry 域，架构 §1.1 Config & Telemetry）。
 	## 订阅全部领域事件做埋点（规范 6.4：不构成产品规则来源），供诊断/验证。
+	## console_echo：每条事件（含表现层 UI_INTERACTED 交互）同步打印控制台日志。
 	var telemetry := TelemetryService.new(bus)
+	telemetry.console_echo = true
 	telemetry.start()
 	## 切片 3：注入入场装载服务（Loadout 域）。购买/扣款走 Transaction 域
 	## 原子性（INV-12）；初始货币由编排器开局初始化（AC-21）。

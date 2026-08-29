@@ -12,7 +12,6 @@
 extends RefCounted
 class_name RunState
 
-
 ## 顶层状态机的运行阶段（对应架构 §2.1）
 enum Phase {
 	BOOT,                  # 启动加载

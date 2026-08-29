@@ -11,8 +11,9 @@ config_version=5
 [application]
 
 config/name="full-haul"
+config/tags=PackedStringArray("demo")
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.7", "Mobile")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -20,18 +21,13 @@ config/icon="res://icon.svg"
 EventBus="*res://autoload/EventBus.gd"
 ConfigLoader="*res://autoload/ConfigLoader.gd"
 
-[fullhaul]
-
-; 数据层后端：memory（内存，默认，无需 sqlite 扩展）| sqlite（需引入 sqlite GDExtension）
-db/backend="memory"
-
 [display]
 
 window/size/viewport_width=1080
 window/size/viewport_height=1920
-window/size/window_width_override=540
-window/size/window_height_override=960
 window/size/resizable=false
+window/size/window_width_override=720
+window/size/window_height_override=1260
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=1
@@ -40,11 +36,18 @@ window/handheld/orientation=1
 
 enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg", "res://addons/yard/plugin.cfg")
 
+[fullhaul]
+
+db/backend="memory"
+
+[gui]
+
+theme/custom_font="res://assets/fonts/NotoSansSC-Regular.otf"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
 
 [rendering]
 
-rendering_device/driver.windows="d3d12"
-renderer/rendering_method="mobile"
+renderer/rendering_method="gl_compatibility"

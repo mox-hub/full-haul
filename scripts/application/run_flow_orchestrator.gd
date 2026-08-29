@@ -69,6 +69,17 @@ var _last_run_outcome := ""
 ## 使完成数统计与容器搜索域一致）
 var _placeholder_seq := 0
 
+## 本局地图容器计划（AC-17 核心搜刮图形化：对局场景内的可操作容器实体来源）。
+## 每局入场时按配置生成 [{container_id, type_id, display_name, grid_width,
+## grid_height}]；容器数量读取 GameConfig（INV-16 单一来源）。
+var _match_containers: Array = []
+
+## 容器搜索分步流程的物品计划（container_id -> Array[Dictionary]：
+## [{instance_id, definition_id, rarity, value, size, pos}]）。物品身份只在
+## 编排器侧保管，表现层经 reveal/finish 用例逐件领取（INV-05 蒙版态不泄露）。
+## 新一局开始时随容器计划一并重置。
+var _container_item_plans: Dictionary = {}
+
 
 func _init(bus: IEventBus, state_store: IRunStateStore, config_loader: IConfigLoader,
 		repositories: RepositorySet = null, loadout_service: ILoadoutService = null,
@@ -125,37 +136,49 @@ func select_backpack(offer_id: String) -> bool:
 
 
 ## 用例：确认入场装载（LOADOUT -> RUN_INIT -> IN_RUN_LOCKED）。
+## 返回是否入场成功（false 表示被拦截，留在 LOADOUT）。
 ## 切片 3：注入 LoadoutService 时，确认入场即购买/扣款所选背包（走 Transaction
 ## 域原子性，INV-12）并落库局外账户；扣款失败（余额不足等）则留在 LOADOUT。
-## 切片 9：若档案已持有所选档位（selected_backpack_offer_id == offerId），跳过
-## 重复购买（事务防重 INV-12 已记录过 purchase，直接复用，保证多局可再入场）。
+## 修复（AC-02/AC-21）：入场购买为「每局一次」——事务引用使用本局 runId，
+## 同一档位跨局入场各自扣款（连续购买与开局），余额不足一律不得入场；
+## 同局重复确认被 LOADOUT 阶段守卫与事务防重双重拦截。此前「档案已持有
+## 档位则跳过购买」的路径会绕过货币校验，已移除。
 ## 未注入时回退占位行为（直接初始化对局）。
 ## WORD-31：对局初始化后写入运行时快照（IRunSnapshotRepository）。
-func confirm_loadout() -> void:
+func confirm_loadout() -> bool:
+	## 阶段守卫：仅在 LOADOUT 阶段可确认（重复确认/局外误调不重复扣款，AC-02）
+	if _sm.current_phase() != RunState.Phase.LOADOUT:
+		return false
+	var run_id := "run-%04d" % (_run_seq + 1)
 	if _loadout_service != null:
 		var profile := _load_profile()
 		if profile == null:
-			return
-		if profile.selected_backpack_offer_id != _selected_offer_id:
-			if not _loadout_service.purchase_backpack(profile, _selected_offer_id):
-				## 购买/扣款失败：留在 LOADOUT，等待重新选择（AC-02）
-				return
-			if _repos != null and _repos.profile != null:
-				_repos.profile.save(profile)
+			return false
+		## 每局入场强制购买扣款（ref=runId：跨局可购、同局防重，AC-02）
+		if not _loadout_service.purchase_backpack(profile, _selected_offer_id, run_id):
+			## 购买/扣款失败（余额不足等）：留在 LOADOUT，等待重新选择（AC-02）
+			return false
+		if _repos != null and _repos.profile != null:
+			_repos.profile.save(profile)
 	_run_seq += 1
-	_sm.on_loadout_confirmed("run-%04d" % _run_seq)
 	## 切片 6：新一局开始清空上局容器登记（INV-14 多局隔离）
 	if _container_search_service != null:
 		_container_search_service.reset()
+	## 生成本局地图容器计划（须先于 RUN_INITIALIZED 事件：表现层在事件回调中
+	## 依此重建地图容器实体，AC-17）
+	_build_match_containers()
+	## 切片 5：绑定本局背包 + 安全箱格子（尺寸单一来源 INV-16）。
+	## 须先于 RUN_INITIALIZED 事件：事件回调里表现层按领域格子重建背包/
+	## 安全箱画布，事件后才建格会让页面拿到 null 空过刷新（格底不显示）。
+	_setup_inventory_grids()
+	_sm.on_loadout_confirmed(run_id)
 	if _loadout_service != null:
 		## 确认绑定本局背包（购买已成功；绑定校验应通过）
-		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id)
-	## 切片 5：绑定本局背包 + 安全箱格子（尺寸单一来源 INV-16）；
-	## 注入 ItemInventoryService 时初始化两格，供局内放置物品使用
-	_setup_inventory_grids()
+		_loadout_service.confirm_loadout(_store.read(), _selected_offer_id, run_id)
 	## V0.1 对局初始化为同步完成（无异步加载），立即进入局内锁定态
 	_sm.on_run_init_ok()
 	_persist_run_snapshot()
+	return true
 
 
 ## 用例：取消入场装载（LOADOUT -> OUT_OF_RUN）。
@@ -170,6 +193,11 @@ func cancel_loadout() -> void:
 ## 返回是否本次发生了全局计时耗尽（已进入 RUN_FAILED）。
 ## 注：表现层计时循环（_process/timer）只调用本用例推进，不直改领域状态。
 func tick_match_time(delta_seconds: float) -> bool:
+	var state: RunState = _store.read()
+	if state != null and float(state.remaining_match_time) - delta_seconds <= 0.0:
+		## 本帧即将超时：先快照背包/安全箱两份清单再转移（状态机在转移瞬间
+		## 即发布 RUN_FAILED，payload 需带上安全箱清单，INV-11）
+		_snapshot_inventory_both()
 	return _sm.tick_match_time(delta_seconds)
 
 
@@ -259,11 +287,17 @@ func carry_revealed_item(instance_id: String, definition_id: String,
 
 
 ## 用例（占位→真携带）：完成一个必搜容器并把产出物品携带入背包（IN_RUN_* 内有效）。
-## 切片 9 表现层接线：占位搜索不再只是「完成计数」，而是登记容器 -> 打开 ->
-## 逐件揭晓 -> 把揭晓物品携带入背包格子 -> 完成容器计数（INV-06 幂等）。
+## container_id 指定要搜索的地图容器（来自本局容器计划 match_containers）；
+## 留空则自动选取计划中下一个未完成容器；无可用计划时回退占位容器。
+## 已完成的容器不重复搜索、不重复携带物品（INV-06 幂等，返回当前计数）。
+## 切片 9 表现层接线：搜索不再只是「完成计数」，而是登记容器 -> 打开 ->
+## 逐件揭晓 -> 把揭晓物品携带入背包格子 -> 完成容器计数。
 ## 未注入 ContainerSearchService / ItemInventoryService 时回退到纯计数占位
 ## （既有流程不受影响）。
-func search_and_carry_container() -> Dictionary:
+## V2：容器内物品多件化（数量/形状来自配置与物品定义，first-fit 摆入容器
+## 网格），内部改走 container_search_plan -> reveal/finish -> carry 链，
+## 对外返回契约不变（completed_count / carried_count）。
+func search_and_carry_container(container_id: String = "") -> Dictionary:
 	var state: RunState = _store.read()
 	if state == null:
 		return {}
@@ -272,33 +306,372 @@ func search_and_carry_container() -> Dictionary:
 	if _container_search_service == null or _item_inventory_service == null:
 		var count := complete_container_placeholder()
 		return {"completed_count": count, "carried_count": 0}
-	_placeholder_seq += 1
-	var container_id := "search-%03d" % _placeholder_seq
-	var instance_id := "s-%03d" % _placeholder_seq
-	_container_search_service.open_container(container_id, 1, [instance_id])
-	var def := _first_item_definition()
-	var definition_id: String = str(def.get("definition_id", "item_battery"))
-	var rarity: String = str(def.get("rarity", "common"))
-	var value: int = int(def.get("value", 40))
-	var size := Vector2i(int(def.get("width", 1)), int(def.get("height", 1)))
-	_container_search_service.start_reveal(container_id, instance_id, rarity)
+	var target := container_id
+	if target == "":
+		target = _next_uncompleted_container()
+		if target == "":
+			_placeholder_seq += 1
+			target = "search-%03d" % _placeholder_seq
+	## 已完成容器：不重复搜索/携带（幂等 INV-06）
+	if _container_search_service.is_container_completed(target):
+		return {"completed_count": _store.read().completed_container_count,
+			"carried_count": 0}
+	var plan := container_search_plan(target)
+	if plan.is_empty():
+		return {"completed_count": _store.read().completed_container_count,
+			"carried_count": 0}
 	var carried := 0
-	if carry_revealed_item(instance_id, definition_id, size):
-		carried = 1
-	_container_search_service.complete_reveal(container_id, instance_id,
-		definition_id, rarity, value, size)
-	_sm.on_container_completed()
-	_persist_run_snapshot()
+	for it: Dictionary in _container_item_plans.get(target, []):
+		var revealed := reveal_container_item(target, str(it.get("instance_id", "")))
+		if revealed.is_empty():
+			continue
+		var size: Vector2i = it.get("size", Vector2i.ONE)
+		if carry_revealed_item(str(it.get("instance_id", "")),
+				str(it.get("definition_id", "")), size):
+			carried += 1
+		finish_reveal_container_item(target, str(it.get("instance_id", "")))
 	return {"completed_count": _store.read().completed_container_count, "carried_count": carried}
 
 
-## 挑选一件物品定义用于占位搜索产出（配置数据单一来源 INV-16）。
-## 取配置数据首条道具/藏品定义；配置未加载时回退内置 item_battery。
-func _first_item_definition() -> Dictionary:
+## ---- 容器搜索分步用例（搜索弹窗：蒙版 -> 按品质转速揭晓 -> 手动搬运）----
+## 身份信息（definition_id/rarity/value）只在编排器侧计划表保管；表现层经
+## reveal（拿品质与耗时定转速）/ finish（揭晓身份）逐步领取，蒙版态不泄露
+## （INV-05）。未搬运的物品实例不注册，关闭弹窗即废弃（不入背包/安全箱）。
+
+## 用例：打开容器进入搜索（MASKED）。返回给表现层的计划摘要：
+## {container_id, item_count, instance_ids, blocks: [{pos, size}]}——只含
+## 数量与占格形状/位置，不含身份。已完成/重复打开返回既有计划的摘要
+## （表现层重开弹窗内容一致）。
+func container_search_plan(container_id: String) -> Dictionary:
+	var state: RunState = _store.read()
+	if state == null or not _in_run_phase():
+		return {}
+	if _container_search_service == null:
+		return {}
+	if container_id == "":
+		container_id = _next_uncompleted_container()
+	if container_id == "" or _container_search_service.is_container_completed(container_id):
+		return {}
+	if _container_item_plans.has(container_id):
+		return _container_plan_summary(container_id)
+	var entry := _container_plan_entry(container_id)
+	if entry.is_empty():
+		return {}
+	var items := _plan_container_items(entry, state)
+	if items.is_empty():
+		return {}
+	var ids: Array = []
+	var sizes: Array = []
+	for it: Dictionary in items:
+		ids.append(it.get("instance_id", ""))
+		sizes.append(it.get("size", Vector2i.ONE))
+	_container_search_service.register_container(container_id, _container_type_id(container_id))
+	_container_search_service.open_container(container_id, items.size(), ids, sizes)
+	_container_item_plans[container_id] = items
+	return _container_plan_summary(container_id)
+
+
+## 用例：开始揭晓一件物品（REVEALING）。返回 {rarity, wait_time}——品质
+## 决定揭晓耗时（配置单一来源 INV-16），表现层据此确定转圈速度。
+func reveal_container_item(container_id: String, instance_id: String) -> Dictionary:
+	if _container_search_service == null or not _in_run_phase():
+		return {}
+	var info := _plan_item_info(container_id, instance_id)
+	if info.is_empty():
+		return {}
+	if not _container_search_service.start_reveal(container_id, instance_id,
+			str(info.get("rarity", "common"))):
+		return {}
+	return {"rarity": info.get("rarity", "common"),
+		"wait_time": _reveal_wait_seconds(str(info.get("rarity", "common")))}
+
+
+## 用例：一件物品揭晓完成（表现层转圈计时结束后调用）。返回该物品的完整
+## 展示信息（definition_id/rarity/value/size/newly_completed），表现层据此刻
+## 把蒙版替换为 3D 物品；首次完成时内部推进容器计数与撤离解锁（INV-06/07）。
+func finish_reveal_container_item(container_id: String, instance_id: String) -> Dictionary:
+	if _container_search_service == null or not _in_run_phase():
+		return {}
+	var info := _plan_item_info(container_id, instance_id)
+	if info.is_empty():
+		return {}
+	var newly := complete_reveal(container_id, instance_id,
+		str(info.get("definition_id", "")), str(info.get("rarity", "common")),
+		int(info.get("value", 0)), info.get("size", Vector2i.ONE))
+	info["newly_completed"] = newly
+	## 补展示名（表现层揭晓块 tooltip 用；定义来自配置单一来源 INV-16）
+	var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
+	var def: Dictionary = defs.get(str(info.get("definition_id", "")), {})
+	info["name"] = str(def.get("name", ""))
+	return info
+
+
+## 用例：把一件已揭晓物品放入背包/安全箱格子（搜索弹窗拖拽搬运）。
+## 实例未注册时先按计划注册（未搬运的物品到此才落地）；已放置的走跨格移动
+## （INV-04 校验，失败保持原状）。
+func stow_revealed_item(instance_id: String, owner: GridInventory.OwnerType,
+		at: Vector2i) -> bool:
+	if _item_inventory_service == null or not _in_run_phase():
+		return false
+	var info := _pending_item_info(instance_id)
+	if info.is_empty():
+		return false
+	var item: ItemInstance = _item_inventory_service.get_item(instance_id)
+	if item == null:
+		item = _item_inventory_service.create_item(instance_id, str(info.get("definition_id", "")))
+		if item == null:
+			return false
+	if item.location == ItemInstance.Location.NONE:
+		return _item_inventory_service.place_item(instance_id, owner, at)
+	return _item_inventory_service.move_item(instance_id, owner, at)
+
+
+## 查询容器计划摘要（表现层刷新复读；无计划返回空）。
+func container_plan_summary(container_id: String) -> Dictionary:
+	if not _container_item_plans.has(container_id):
+		return {}
+	return _container_plan_summary(container_id)
+
+
+## 查询一件待搬运物品的展示信息（跨容器扫计划表；无返回空）。
+func pending_item_info(instance_id: String) -> Dictionary:
+	return _pending_item_info(instance_id)
+
+
+## 撤离落定/结算后把入库物品摆入仓库格子（first-fit；仓库格未初始化或
+## 放不下时跳过位置记录——物品账本仍以 warehouse_item_ids 为准）。
+func deposit_items_to_warehouse(instance_ids: Array) -> void:
+	for instance_id: String in instance_ids:
+		ensure_warehouse_placement(str(instance_id))
+
+
+## 用例：确保一件仓库物品已摆入仓库格子（结算入库时逐件调用；账本里已有
+## 但缺位置的——如外部登记的种子物品——渲染时惰性补位）。返回顶左格坐标；
+## 仓库格未初始化/放不下返回 (-1,-1)。实例未知（无实例/定义）只给 1x1 坐标
+## 供表现层画占位块，不落实例。
+func ensure_warehouse_placement(instance_id: String) -> Vector2i:
+	if _item_inventory_service == null:
+		return Vector2i(-1, -1)
+	var grid: GridInventory = _item_inventory_service.get_grid(GridInventory.OwnerType.WAREHOUSE)
+	if grid == null:
+		return Vector2i(-1, -1)
+	var item: ItemInstance = _item_inventory_service.get_item(instance_id)
+	var size := Vector2i.ONE
+	if item != null:
+		var def := _item_inventory_service.get_definition(item.definition_id)
+		if def != null:
+			size = def.size()
+	if item != null and item.location == ItemInstance.Location.WAREHOUSE:
+		return grid.position_of(instance_id)
+	var at := _first_free_slot(grid, size)
+	if at == Vector2i(-1, -1):
+		return at
+	if item == null:
+		return at
+	if item.location == ItemInstance.Location.NONE:
+		_item_inventory_service.place_item(instance_id, GridInventory.OwnerType.WAREHOUSE, at)
+	else:
+		_item_inventory_service.move_item(instance_id, GridInventory.OwnerType.WAREHOUSE, at)
+	return at
+
+
+## 用例：仓库内拖拽重排一件物品（INV-04 校验，失败保持原位）。
+## 仓库为局外空间，不做局内阶段守卫。
+func move_warehouse_item(instance_id: String, at: Vector2i) -> bool:
+	if _item_inventory_service == null:
+		return false
+	var item: ItemInstance = _item_inventory_service.get_item(instance_id)
+	if item == null or item.location != ItemInstance.Location.WAREHOUSE:
+		return false
+	return _item_inventory_service.move_item(instance_id, GridInventory.OwnerType.WAREHOUSE, at)
+
+
+## 为容器生成物品计划：按本局进度轮转物品定义（确定性，不引入随机），
+## 数量读配置 container_item_count_range（INV-16），逐件 first-fit 摆入容器
+## 网格（临时 GridInventory 承载校验）；放不下的物品截断（蒙版块与最终
+## 揭晓逐件一致）。
+func _plan_container_items(entry: Dictionary, state: RunState) -> Array:
+	var gw := maxi(int(entry.get("grid_width", 3)), 1)
+	var gh := maxi(int(entry.get("grid_height", 3)), 1)
+	var container_id := str(entry.get("container_id", ""))
+	var grid := GridInventory.new("plan-%s" % container_id, GridInventory.OwnerType.SAFE, gw, gh)
+	var items: Array = []
+	var start_index := _container_search_service.completed_container_count()
+	for i in _container_item_count(start_index):
+		var def := _nth_item_definition(start_index + i)
+		var size := Vector2i(maxi(int(def.get("width", 1)), 1), maxi(int(def.get("height", 1)), 1))
+		var pos := _first_free_slot(grid, size)
+		if pos == Vector2i(-1, -1):
+			break
+		grid.place("plan-%d" % i, size, pos)
+		items.append({
+			"instance_id": "%s-%s-item-%d" % [state.run_id, container_id, i + 1],
+			"definition_id": str(def.get("definition_id", "item_battery")),
+			"rarity": str(def.get("rarity", "common")),
+			"value": int(def.get("value", 40)),
+			"size": size,
+			"pos": pos,
+		})
+	return items
+
+
+## 容器内物品数量（配置 container_item_count_range [min,max] 单一来源 INV-16；
+## 按本局进度确定性轮动、首容器从 min+1 起步，未加载配置回退 1）。
+func _container_item_count(index: int) -> int:
+	var range_v := Vector2i(1, 1)
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			range_v = cfg.container_item_count_range
+	var lo := maxi(range_v.x, 1)
+	var hi := maxi(range_v.y, lo)
+	return lo + ((index + 1) % (hi - lo + 1))
+
+
+## 在 gw×gh 网格中为 size 找 first-fit 位置（occ 为已占格集合）；放不下
+## 返回 (-1,-1)。
+func _first_fit_in_grid(gw: int, gh: int, size: Vector2i, occ: Dictionary) -> Vector2i:
+	for y in gh:
+		for x in gw:
+			var at := Vector2i(x, y)
+			if at.x + size.x > gw or at.y + size.y > gh:
+				continue
+			var blocked := false
+			for dx in size.x:
+				for dy in size.y:
+					if occ.has(at + Vector2i(dx, dy)):
+						blocked = true
+						break
+				if blocked:
+					break
+			if not blocked:
+				return at
+	return Vector2i(-1, -1)
+
+
+## 计划表的对外摘要（只含数量/实例 id/占格位置与形状/已揭晓标记，不含身份
+## INV-05）；blocks 元素为 {pos, size, revealed}。
+func _container_plan_summary(container_id: String) -> Dictionary:
+	var items: Array = _container_item_plans.get(container_id, [])
+	var blocks: Array = []
+	var ids: Array = []
+	var csm: ContainerSearchStateMachine = _container_search_service.container(container_id) \
+		if _container_search_service != null else null
+	for it: Dictionary in items:
+		ids.append(it.get("instance_id", ""))
+		blocks.append({
+			"pos": it.get("pos", Vector2i.ZERO),
+			"size": it.get("size", Vector2i.ONE),
+			"revealed": csm != null and csm.is_instance_revealed(str(it.get("instance_id", ""))),
+		})
+	return {"container_id": container_id, "item_count": items.size(),
+		"instance_ids": ids, "blocks": blocks}
+
+
+## 查容器计划中某件物品的完整信息（身份仅此处可见）。
+func _plan_item_info(container_id: String, instance_id: String) -> Dictionary:
+	for it: Dictionary in _container_item_plans.get(container_id, []):
+		if str(it.get("instance_id", "")) == instance_id:
+			return it.duplicate()
+	return {}
+
+
+## 跨容器查一件待搬运物品的完整信息。
+func _pending_item_info(instance_id: String) -> Dictionary:
+	for container_id in _container_item_plans:
+		var info := _plan_item_info(str(container_id), instance_id)
+		if not info.is_empty():
+			return info
+	return {}
+
+
+## 品质揭晓耗时（秒，配置单一来源 INV-16；未加载回退 1）。
+func _reveal_wait_seconds(rarity: String) -> float:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.get_reveal_duration(rarity)
+	return 1.0
+
+
+## 本局地图容器计划（AC-17：表现层地图容器实体的数据来源；只读副本）。
+func match_containers() -> Array:
+	return _match_containers.duplicate()
+
+
+## 生成本局地图容器计划（每局入场时调用，INV-14 多局隔离）。
+## 容器类型取配置数据 container_types（kind=="container"，排除撤离点等），
+## 依次轮转生成 match_container_count 个；配置缺失时回退等量通用容器。
+func _build_match_containers() -> void:
+	_match_containers = []
+	_container_item_plans.clear()
+	var types: Array = []
+	var container_types: Dictionary = _loaded_config_data.get("container_types", {})
+	for type_id in container_types:
+		var entry: Dictionary = container_types[type_id]
+		if str(entry.get("kind", "container")) != "container":
+			continue
+		types.append(entry)
+	var count := _match_container_count()
+	for i in count:
+		if types.is_empty():
+			_match_containers.append({
+				"container_id": "map-c-%02d" % (i + 1), "type_id": "",
+				"display_name": "容器", "grid_width": 3, "grid_height": 3})
+			continue
+		var entry: Dictionary = types[i % types.size()]
+		_match_containers.append({
+			"container_id": "map-c-%02d" % (i + 1),
+			"type_id": str(entry.get("type_id", "")),
+			"display_name": str(entry.get("display_name", "容器")),
+			"grid_width": int(entry.get("grid_width", 3)),
+			"grid_height": int(entry.get("grid_height", 3))})
+
+
+## 本局地图容器数量（配置单一来源 INV-16；未加载/非法时回退 6）。
+func _match_container_count() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null and cfg.match_container_count > 0:
+			return cfg.match_container_count
+	return 6
+
+
+## 计划中下一个未完成容器 id；全部完成/无计划返回 ""。
+func _next_uncompleted_container() -> String:
+	if _container_search_service == null:
+		return ""
+	for entry in _match_containers:
+		var cid := str(entry.get("container_id", ""))
+		if cid != "" and not _container_search_service.is_container_completed(cid):
+			return cid
+	return ""
+
+
+## 查容器计划中的 type_id；不在计划中返回 ""。
+func _container_type_id(container_id: String) -> String:
+	for entry in _match_containers:
+		if str(entry.get("container_id", "")) == container_id:
+			return str(entry.get("type_id", ""))
+	return ""
+
+
+## 查容器计划条目（含 display_name/grid_width/grid_height）；不在计划中返回空。
+func _container_plan_entry(container_id: String) -> Dictionary:
+	for entry in _match_containers:
+		if str(entry.get("container_id", "")) == container_id:
+			return entry
+	return {}
+
+
+## 挑选一件物品定义用于搜索产出（配置数据单一来源 INV-16）。
+## 按已完成容器数轮转配置数据中的定义（确定性，不引入随机）；配置未加载时
+## 回退内置 item_battery。
+func _nth_item_definition(index: int) -> Dictionary:
 	var defs: Dictionary = _loaded_config_data.get("item_definitions", {})
 	if not defs.is_empty():
-		var first_key: String = str(defs.keys()[0])
-		return defs[first_key]
+		var keys: Array = defs.keys()
+		return defs[keys[index % keys.size()]]
 	return {"definition_id": "item_battery", "rarity": "common",
 		"value": 40, "width": 1, "height": 1}
 
@@ -315,12 +688,15 @@ func start_extraction() -> void:
 ## 返回是否本次推进使撤离阶段落定（已进入 RUN_SUCCEEDED 或 RUN_FAILED）。
 ## 注：表现层计时循环（_process/timer）只调用本用例推进，不直改领域状态。
 func tick_extraction(delta_seconds: float) -> bool:
+	## 状态机在转移瞬间即发布终局事件（payload 携带清单），先备好两份清单：
+	## 读条先归零取背包（INV-10）、总时间先归零取安全箱（INV-11），落定帧
+	## 之前哪份被取用未知，两份同时快照互不干扰。
+	_snapshot_inventory_both()
 	var resolved := _sm.tick_extraction(delta_seconds)
 	if resolved:
 		## 读条先归零 -> 成功；总时间先归零 -> 失败（INV-08）
 		_last_run_outcome = "success" \
 			if _sm.current_phase() == RunState.Phase.RUN_SUCCEEDED else "failure"
-		_snapshot_inventory_to_run()
 		_persist_run_snapshot()
 	return resolved
 
@@ -328,17 +704,17 @@ func tick_extraction(delta_seconds: float) -> bool:
 ## 用例（占位）：撤离读条完成（EXTRACTING -> RUN_SUCCEEDED）。
 ## 真实读条计时由 Extract 域切片 7 接入（TBD-04 同刻优先级停工红线）。
 func complete_extraction_placeholder() -> void:
+	_snapshot_inventory_both()
 	_sm.on_extraction_complete()
 	_last_run_outcome = "success"
-	_snapshot_inventory_to_run()
 	_persist_run_snapshot()
 
 
 ## 用例（占位）：本局总时间耗尽（IN_RUN_* / EXTRACTING -> RUN_FAILED）。
 func timeout_placeholder() -> void:
+	_snapshot_inventory_both()
 	_sm.on_timeout()
 	_last_run_outcome = "failure"
-	_snapshot_inventory_to_run()
 	_persist_run_snapshot()
 
 
@@ -371,6 +747,8 @@ func settle() -> void:
 	for instance_id in returned_ids:
 		_bus.publish(DomainEvents.Events.WAREHOUSE_ITEM_ADDED,
 			DomainEvents.WarehouseItemAdded.new(str(instance_id)))
+	## 入库物品摆入仓库格子（first-fit；位置为运行时状态，跨重启重排）
+	deposit_items_to_warehouse(returned_ids)
 
 
 ## 用例：出售一件仓库物品（切片 8 Warehouse 域，INV-12 原子事务）。
@@ -390,6 +768,12 @@ func sell_warehouse_item(instance_id: String) -> int:
 	if price > 0 and _repos != null and _repos.profile != null:
 		_repos.profile.save(profile)
 	if price > 0:
+		## 同步清掉仓库格子上的摆放（账本与格子位置一致）
+		if _item_inventory_service != null:
+			var grid: GridInventory = _item_inventory_service.get_grid(
+				GridInventory.OwnerType.WAREHOUSE)
+			if grid != null:
+				grid.remove(instance_id)
 		_bus.publish(DomainEvents.Events.ITEM_SOLD, DomainEvents.ItemSold.new(
 			instance_id, price, balance_before, profile.currency))
 		_bus.publish(DomainEvents.Events.CURRENCY_CHANGED, DomainEvents.CurrencyChanged.new(
@@ -481,6 +865,16 @@ func carried_item_count() -> int:
 	return grid.item_count() if grid != null else 0
 
 
+## 本局背包格内的物品实例 id 列表（按放置顺序的只读副本；供表现层背包格
+## 渲染品质/名称，展示信息经 ItemInventoryService 物品定义解析，
+## 不耦合实例 id 命名）。
+func backpack_item_ids() -> Array:
+	if _item_inventory_service == null:
+		return []
+	var grid: GridInventory = _item_inventory_service.get_grid(GridInventory.OwnerType.BACKPACK)
+	return grid.placements.keys() if grid != null else []
+
+
 ## 本局剩余总时间（秒；供 HUD 展示）。
 func remaining_match_time() -> int:
 	var state: RunState = _store.read()
@@ -491,6 +885,15 @@ func remaining_match_time() -> int:
 func remaining_extraction_time() -> int:
 	var state: RunState = _store.read()
 	return state.remaining_extraction_time if state != null else 0
+
+
+## 撤离读条时长（配置单一来源 INV-16；供 HUD 读条按总量归一展示）。
+func extraction_duration() -> int:
+	if _config_loader != null:
+		var cfg := _config_loader.get_config()
+		if cfg != null:
+			return cfg.extraction_duration
+	return 15
 
 
 ## 当前已选背包档位 offerId（表现层展示选中态用）。
@@ -625,6 +1028,25 @@ func _first_free_slot(grid: GridInventory, size: Vector2i) -> Vector2i:
 			if grid.can_place(size, at):
 				return at
 	return Vector2i(-1, -1)
+
+
+## 撤离落定「前」把背包与安全箱两份清单同时快照到 RunState（carried/safe）。
+## 状态机在转移瞬间即发布 RUN_SUCCEEDED/RUN_FAILED（payload 携带清单），
+## 快照必须先于转移，否则结算页事件回调收到空列表（「带出 0 件」缺陷）。
+## 成功取背包（INV-10）、失败取安全箱（INV-11）的取舍由结算/持久化按
+## 终局阶段判定，两份同时备好互不干扰。
+func _snapshot_inventory_both() -> void:
+	if _item_inventory_service == null:
+		return
+	var state: RunState = _store.read()
+	if state == null:
+		return
+	var backpack: GridInventory = _item_inventory_service.get_grid(
+		GridInventory.OwnerType.BACKPACK)
+	var safe: GridInventory = _item_inventory_service.get_grid(GridInventory.OwnerType.SAFE)
+	state.carried_item_ids = backpack.placements.keys() if backpack != null else []
+	state.safe_item_ids = safe.placements.keys() if safe != null else []
+	_store.write(state)
 
 
 ## 撤离落定后快照本局携带/安全箱物品到 RunState（切片 9 表现层接线）。

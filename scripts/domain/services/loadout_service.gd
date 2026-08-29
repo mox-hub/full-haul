@@ -56,21 +56,25 @@ func can_afford(profile: PlayerProfile, offer_id: String) -> bool:
 
 
 ## 购买/选择指定背包并完成货币扣款（INV-12）。
+## ref_id 为事务防重引用（默认 offer_id）：入场购买按规范 AC-02「每次确认
+## 入场校验价格、正确扣款」，传 run_id 作 ref_id 使同一档位跨局可重复购买、
+## 同局重复确认被 Transaction 域防重拦截。
 ## 返回是否成功：档位不存在 / 余额不足 / 重复购买均失败，失败时不产生任何变动。
 ## 成功时：
 ##   - 经 Transaction 域原子扣款并记录事务流水；
 ##   - 在档案上记录已选背包 offerId；
 ##   - 发布 BACKPACK_PURCHASED 与 CURRENCY_CHANGED 事件。
-func purchase_backpack(profile: PlayerProfile, offer_id: String) -> bool:
+func purchase_backpack(profile: PlayerProfile, offer_id: String, ref_id: String = "") -> bool:
 	if profile == null or _transaction_service == null:
 		return false
 	var offer := get_backpack_offer(offer_id)
 	if offer.is_empty():
 		return false
+	var tx_ref := ref_id if ref_id != "" else offer_id
 	var price: int = offer.get("price", 0)
 	var balance_before := profile.currency
 	## 扣款必须走 Transaction 域（原子 + 防重，INV-12）
-	if not _transaction_service.apply_transaction(profile, TX_PURCHASE, -price, offer_id):
+	if not _transaction_service.apply_transaction(profile, TX_PURCHASE, -price, tx_ref):
 		return false
 	profile.selected_backpack_offer_id = offer_id
 	if _bus != null:
@@ -82,15 +86,17 @@ func purchase_backpack(profile: PlayerProfile, offer_id: String) -> bool:
 
 
 ## 确认装载并绑定本局背包（AC-03 前置校验）。
+## ref_id 为购买事务引用（默认 offer_id，须与 purchase_backpack 使用的引用一致）。
 ## 返回是否成功：档位有效且该档位已完成购买（存在 purchase 事务）才允许确认。
 ## 说明：本局背包的格子尺寸绑定由 Item & Inventory 域（切片 5）落地；
 ## 本切片只保证「确认时该档位已购得、可带入本局」。
-func confirm_loadout(run: RunState, offer_id: String) -> bool:
+func confirm_loadout(run: RunState, offer_id: String, ref_id: String = "") -> bool:
 	if run == null:
 		return false
 	if get_backpack_offer(offer_id).is_empty():
 		return false
+	var tx_ref := ref_id if ref_id != "" else offer_id
 	if _transaction_service == null \
-			or not _transaction_service.has_transaction(TX_PURCHASE, offer_id):
+			or not _transaction_service.has_transaction(TX_PURCHASE, tx_ref):
 		return false
 	return true

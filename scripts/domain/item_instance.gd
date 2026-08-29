@@ -18,6 +18,7 @@ enum Location {
 	BACKPACK,   # 本局背包
 	SAFE,       # 安全箱
 	CONTAINER,  # 容器内（Loot 域，切片 6 使用）
+	WAREHOUSE,  # 仓库格子（局外储物空间；位置为运行时状态）
 	DROPPED,    # 已丢弃（INV-01 明确标记）
 }
 
@@ -44,4 +45,4 @@ func position() -> Vector2i:
 ## 是否已放置在某个格子上（INV-01 唯一归属判定）。
 func is_placed() -> bool:
 	return location == Location.BACKPACK or location == Location.SAFE \
-		or location == Location.CONTAINER
+		or location == Location.CONTAINER or location == Location.WAREHOUSE

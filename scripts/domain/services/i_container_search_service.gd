@@ -22,9 +22,11 @@ func register_container(container_id: String, type_id: String = "") -> bool:
 
 ## 打开一个容器进入搜索（INV-05），item_count 为容器内物品总数；
 ## item_instance_ids 为容器内物品实例 id 列表（可选，提供时以实例数为准，
-## 保证遮罩计数与最终揭晓一致）。未登记容器时自动登记。
+## 保证遮罩计数与最终揭晓一致）；item_sizes 为各物品占格尺寸（可选，
+## 逐件 Vector2i，蒙版按真实形状呈现）。未登记容器时自动登记。
 ## 返回是否打开成功（已打开过返回 false）。
-func open_container(container_id: String, item_count: int, item_instance_ids: Array = []) -> bool:
+func open_container(container_id: String, item_count: int, item_instance_ids: Array = [],
+		item_sizes: Array = []) -> bool:
 	return false
 
 

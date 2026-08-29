@@ -28,8 +28,17 @@ var _selected_offer := ""
 
 
 func _ready() -> void:
+	_apply_styles()
 	confirm_button.pressed.connect(_on_confirm_button_pressed)
 	cancel_button.pressed.connect(_on_cancel_button_pressed)
+
+
+## 统一卡通风样式（PixelUiKit 单一来源；确认钮为红色主行动）。
+func _apply_styles() -> void:
+	PixelUiKit.style_rect_button(confirm_button, PixelUiKit.COL_RED,
+			PixelUiKit.COL_RED_BORDER, 34, Color(1, 0.96, 0.94))
+	PixelUiKit.style_rect_button(cancel_button, PixelUiKit.COL_CHIP_BG,
+			PixelUiKit.COL_BORDER, 30, PixelUiKit.COL_TEXT)
 
 
 ## 组合根（main.gd）注入编排器与事件总线，并加载档位列表。
@@ -64,6 +73,8 @@ func _rebuild_offers() -> void:
 		var pick := Button.new()
 		pick.text = "选择"
 		pick.custom_minimum_size = Vector2(150, 72)
+		PixelUiKit.style_rect_button(pick, PixelUiKit.COL_GOLD,
+				PixelUiKit.COL_BORDER, 26, PixelUiKit.COL_TEXT)
 		pick.pressed.connect(func(): _on_offer_pressed(id_str))
 		row.add_child(pick)
 		offer_list.add_child(row)
@@ -89,6 +100,7 @@ func _on_offer_pressed(offer_id: String) -> void:
 
 
 ## 按钮回调：确认入场（购买扣款 + 初始化对局）。
+## 入场被拦截（余额不足等，AC-02 余额不足不得入场）时留在装载页并提示原因。
 func _on_confirm_button_pressed() -> void:
 	if _orchestrator == null:
 		return
@@ -99,7 +111,23 @@ func _on_confirm_button_pressed() -> void:
 			var offers := _load_offers()
 			if not offers.is_empty():
 				_orchestrator.select_backpack(str(offers.keys()[0]))
-	_orchestrator.confirm_loadout()
+	var confirmed := _orchestrator.confirm_loadout()
+	if not confirmed:
+		_show_purchase_blocked_hint()
+
+
+## 入场被拦截提示（余额不足为主因，AC-02：扣款失败留在 LOADOUT 等待重选）。
+func _show_purchase_blocked_hint() -> void:
+	if _orchestrator == null or currency_label == null:
+		return
+	var offer_id := _selected_offer \
+		if _selected_offer != "" else _orchestrator.selected_backpack_offer()
+	var offer: Dictionary = _load_offers().get(offer_id, {})
+	var price := int(offer.get("price", 0))
+	var profile: PlayerProfile = _orchestrator.current_profile()
+	var currency := profile.currency if profile != null else 0
+	currency_label.text = "当前货币：%d —— 余额不足，购买该背包需 %d，无法入场" \
+		% [currency, price]
 
 
 func _on_cancel_button_pressed() -> void:

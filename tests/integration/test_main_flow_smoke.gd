@@ -19,6 +19,26 @@ extends GdUnitTestSuite
 
 const MainScene := preload("res://scenes/main.tscn")
 
+## 揭晓时长备份（测试内加速揭晓动画，after_test 恢复）
+var _saved_durations: Dictionary = {}
+
+
+## 加速揭晓动画（须在主场景 boot 之后调用——boot 会重新 load_config 覆盖）。
+func _accelerate_reveals() -> void:
+	var cfg: GameConfig = ConfigLoader.get_config()
+	if cfg == null:
+		return
+	_saved_durations = cfg.rarity_reveal_durations.duplicate()
+	var fast := {}
+	for k in cfg.rarity_reveal_durations:
+		fast[k] = 0.05
+	cfg.rarity_reveal_durations = fast
+
+
+func after_test() -> void:
+	if not _saved_durations.is_empty():
+		ConfigLoader.get_config().rarity_reveal_durations = _saved_durations
+
 
 ## 按路径取节点（集成测试不依赖被测脚本内部结构，仅按场景树路径取控件）
 func _page(main: Node, path: String) -> Control:
@@ -29,9 +49,16 @@ func _button(page: Control, unique_name: String) -> Button:
 	return page.get_node("%" + unique_name) as Button
 
 
+## 组合根(main.gd)持有编排器，供黑盒测试经只读访问器断言领域状态。
+func _orchestrator(main: Node) -> RunFlowOrchestrator:
+	return main.get("_orchestrator") as RunFlowOrchestrator
+
+
 func test_main_scene_minimal_flow() -> void:
 	var main: Node = auto_free(MainScene.instantiate())
 	add_child(main)
+	## V2 搜索弹窗：容器完成要等逐件揭晓动画跑完；压到 0.05s 让序列亚秒完成
+	_accelerate_reveals()
 
 	## 启动完成：局外页可见，其余页面隐藏
 	var lobby := _page(main, "UiRoot/LobbyPage")
@@ -50,8 +77,15 @@ func test_main_scene_minimal_flow() -> void:
 	_button(loadout, "ConfirmButton").pressed.emit()
 	assert_that(match_page.visible).is_true()
 
+	## V2 分步流程：每次搜索打开弹窗（蒙版→按品质转速揭晓→手动搬运），
+	## 容器完成计数在揭晓跑完后推进；逐次等完成计数 +1（地图按钮的禁用态
+	## 入场后要等一帧阶段轮询补刷，不可作为就绪信号）
 	for i in 5:
 		_button(match_page, "SearchButton").pressed.emit()
+		var deadline := Time.get_ticks_msec() + 8000
+		while Time.get_ticks_msec() < deadline 				and _orchestrator(main).completed_container_count() < i + 1:
+			await get_tree().process_frame
+	assert_that(_orchestrator(main).completed_container_count()).is_equal(5)
 	assert_that(_button(match_page, "ExtractButton").disabled).is_false()
 
 	_button(match_page, "ExtractButton").pressed.emit()

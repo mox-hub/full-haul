@@ -45,6 +45,12 @@ func setup_safe(grid_width: int, grid_height: int) -> bool:
 	return false
 
 
+## 建立仓库格子（局外储物空间；尺寸为实现侧约定，位置为运行时状态，
+## 跨重启不持久化——TBD 位置持久化落库后再迁移）。
+func setup_warehouse(grid_width: int, grid_height: int) -> bool:
+	return false
+
+
 ## 放置校验：物品能否放入指定格子的目标位置（不执行放置；越界/重叠/尺寸
 ## 不合法返回 false，INV-04）。
 func can_place(instance_id: String, owner: GridInventory.OwnerType, to: Vector2i) -> bool:
