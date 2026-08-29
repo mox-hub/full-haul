@@ -33,7 +33,7 @@ db/
 ├── schema.sql              # 当前完整模式（只读参考 / 一键全新建库）
 ├── README.md               # 本文件
 └── migrations/
-    └── 001_initial_schema.sql   # 增量迁移 001（初始全量建表）
+	└── 001_initial_schema.sql   # 增量迁移 001（初始全量建表）
 ```
 
 ## 验证
