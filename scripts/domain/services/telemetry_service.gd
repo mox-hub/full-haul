@@ -26,6 +26,10 @@ var _bus: IEventBus = null
 var _entries: Array = []
 ## 事件类型 -> 订阅 id（start 登记 / stop 退订）
 var _sub_ids: Dictionary = {}
+## 控制台回显开关：true 时每条事件留痕同时 print 一行日志（组合根打开，
+## 默认关闭避免测试输出刷屏）。日志形如：
+##   [遥测][+1234 ms] CONTAINER_OPENED(container_id=c1 unknown_count=2)
+var console_echo := false
 
 
 func _init(bus: IEventBus = null) -> void:
@@ -75,14 +79,19 @@ func clear() -> void:
 	_entries.clear()
 
 
-## 记录一条遥测事件（start 后由订阅回调触发）。
+## 记录一条遥测事件（start 后由订阅回调触发）；console_echo 开启时同步
+## 打印一行到控制台（Godot 标准输出）。
 func _record(event_id: int, payload: RefCounted) -> void:
+	var at_ms := Time.get_ticks_msec()
+	var summary := _summarize(event_id, payload)
 	_entries.append({
 		"event_id": event_id,
 		"event_name": _event_name(event_id),
-		"at_ms": Time.get_ticks_msec(),
-		"summary": _summarize(event_id, payload),
+		"at_ms": at_ms,
+		"summary": summary,
 	})
+	if console_echo:
+		print("[遥测][+%d ms] %s" % [at_ms, summary])
 
 
 ## 事件类型 -> 可读事件名（枚举键）。

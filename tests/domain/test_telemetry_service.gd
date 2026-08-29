@@ -119,3 +119,30 @@ func test_no_bus_start_is_safe() -> void:
 	t.start()
 	## 无总线不订阅、不记录，也不抛错
 	assert_that(t.entries().is_empty()).is_true()
+
+## [Telemetry] UI_INTERACTED 交互事件：正常留痕且摘要含界面/动作/对象
+func test_ui_interacted_recorded_with_summary() -> void:
+	var t := _telemetry()
+
+	_adapter.publish(DomainEvents.Events.UI_INTERACTED,
+		DomainEvents.UiInteracted.new("match", "container_click", "crate_1", ""))
+
+	assert_that(t.count(DomainEvents.Events.UI_INTERACTED)).is_equal(1)
+	var summary := str(t.entries()[0].get("summary"))
+	assert_that(summary).contains("screen=match")
+	assert_that(summary).contains("action=container_click")
+	assert_that(summary).contains("target=crate_1")
+
+
+## [Telemetry] console_echo 开启：留痕行为不变（控制台打印无法断言，仅回归不抛错）
+func test_console_echo_keeps_recording() -> void:
+	var t := TelemetryService.new(_adapter)
+	t.console_echo = true
+	t.start()
+
+	_adapter.publish(DomainEvents.Events.UI_INTERACTED,
+		DomainEvents.UiInteracted.new("match", "search_button"))
+	_adapter.publish(DomainEvents.Events.RUN_INITIALIZED,
+		DomainEvents.RunInitialized.new("run-0001", 180, 0, true, false))
+
+	assert_that(t.entries().size()).is_equal(2)

@@ -49,12 +49,16 @@ class _InMemoryStateStore:
 		_state = state
 
 
-## 假配置加载器：返回默认 GameConfig
+## 假配置加载器：默认 GameConfig，但容器固定单件——本套件验证的是接线
+## 与遥测留痕（每容器 1 件是全部断言的前提）；多件轮转语义由
+## test_container_search_wiring / 全链路套件覆盖。
 class _FakeConfigLoader:
 	extends IConfigLoader
 
 	func get_config() -> GameConfig:
-		return GameConfig.new()
+		var cfg := GameConfig.new()
+		cfg.container_item_count_range = Vector2i(1, 1)
+		return cfg
 
 
 ## 假配置数据仓储：种子物品定义（INV-16 单一来源，含 carry 所需 item_battery）

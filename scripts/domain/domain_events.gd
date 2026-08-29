@@ -39,6 +39,7 @@ enum Events {
 	WAREHOUSE_ITEM_ADDED,      # 仓库入库
 	ITEM_SOLD,                 # 物品出售（INV-12）
 	CURRENCY_CHANGED,          # 货币变动（INV-12）
+	UI_INTERACTED,             # 表现层用户交互（按钮点击/弹窗开合/拖拽落格等，供控制台日志）
 }
 
 ## OutOfRunEntered：进入局外状态
@@ -236,3 +237,18 @@ class CurrencyChanged:
 		delta = p_delta
 		balance_before = p_balance_before
 		balance_after = p_balance_after
+
+## UiInteracted：表现层用户交互（页面按钮点击、弹窗开合、拖拽落格等）。
+## 不承载业务规则，只供遥测/控制台日志留痕（定位问题用「哪个界面做了什么」）。
+class UiInteracted:
+	extends RefCounted
+	var screen: String = ""    # 来源界面标识（match / lobby / loadout / settlement）
+	var action: String = ""    # 动作名（search_button / container_click / item_drop …）
+	var target: String = ""    # 作用对象（容器 id / 物品实例 id 等，无则空串）
+	var detail: String = ""    # 附加说明（落格坐标、结果 ok/fail 等，无则空串）
+
+	func _init(p_screen := "", p_action := "", p_target := "", p_detail := "") -> void:
+		screen = p_screen
+		action = p_action
+		target = p_target
+		detail = p_detail
