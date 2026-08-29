@@ -18,6 +18,8 @@ class_name ItemDefinition
 var definition_id: String = ""
 var name: String = ""
 var rarity: String = ""
+## 类别字符串（对齐 ItemData.category_id / db category 列；物品概率系统的类型维度）
+var category: String = ""
 var width: int = 0
 var height: int = 0
 var value: int = 0
@@ -72,6 +74,7 @@ static func from_resource(data: ItemData) -> ItemDefinition:
 		data.grid_size.y,
 		data.base_value,
 		data.rarity_id())
+	def.category = data.category_id()
 	def.max_stack = maxi(1, data.max_stack)
 	def.boundary_note = data.boundary_note
 	def.description = data.description
@@ -91,6 +94,7 @@ static func from_config(data: Dictionary) -> ItemDefinition:
 		int(data.get("height", 0)),
 		int(data.get("value", 0)),
 		str(data.get("color_semantic", "")))
+	def.category = str(data.get("category", ""))
 	def.max_stack = maxi(1, int(data.get("max_stack", 1)))
 	def.boundary_note = str(data.get("boundary_note", ""))
 	def.description = str(data.get("description", ""))

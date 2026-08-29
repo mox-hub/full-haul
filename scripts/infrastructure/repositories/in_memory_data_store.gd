@@ -18,6 +18,9 @@ class_name InMemoryDataStore
 ## 物品定义 Resource 注册态（definition_id -> ItemData，源 data/items/item_registry.tres）
 var item_data_resources: Dictionary = {}
 var item_definitions: Dictionary = {}
+## 容器定义 Resource 注册态（container_id -> ContainerData，源
+## data/containers/container_registry.tres，含物品概率系统绑定）
+var container_data_resources: Dictionary = {}
 var container_types: Dictionary = {}
 var backpack_offers: Dictionary = {}
 var container_tier_weights: Dictionary = {}
@@ -43,10 +46,10 @@ func ensure_profile() -> PlayerProfile:
 
 
 ## 种子化 V0.1 默认配置数据（切片 9：让内存后端可直接跑通功能链闭环）。
-## 单一来源 INV-16：item_definition 经 ItemResourceCatalog 从物品注册表
-## （data/items/item_registry.tres）装载 ItemData 资源，同时导出字典兼容
-## 视图；container_type / backpack_offer / container_tier_config 为最小语义
-## 种子（对齐 db/schema.sql 字段）。
+## 单一来源 INV-16：item_definition / container_type 经各自 ResourceCatalog
+## 从注册表（data/items/item_registry.tres、data/containers/container_registry.tres）
+## 装载 ItemData/ContainerData 资源，同时导出字典兼容视图；
+## backpack_offer / container_tier_config 为最小语义种子（对齐 db/schema.sql）。
 ## 已在组合根装配时调用一次；仅当各表为空时才写入，不覆盖已注入的数据。
 func seed_v01_defaults() -> void:
 	if item_data_resources.is_empty():
@@ -54,18 +57,11 @@ func seed_v01_defaults() -> void:
 	if item_definitions.is_empty():
 		for def_id: String in item_data_resources:
 			item_definitions[def_id] = item_data_resources[def_id].to_config_dict()
+	if container_data_resources.is_empty():
+		container_data_resources = ContainerResourceCatalog.load_all()
 	if container_types.is_empty():
-		container_types = {
-			"crate_wood": {"type_id": "crate_wood", "kind": "container",
-				"display_name": "木箱", "tier": "C1", "grid_width": 3, "grid_height": 3,
-				"icon_id": "", "map_availability": ""},
-			"crate_metal": {"type_id": "crate_metal", "kind": "container",
-				"display_name": "铁箱", "tier": "C3", "grid_width": 4, "grid_height": 4,
-				"icon_id": "", "map_availability": ""},
-			"extract_heli": {"type_id": "extract_heli", "kind": "extract",
-				"display_name": "撤离点", "tier": "C1", "grid_width": 2, "grid_height": 2,
-				"icon_id": "", "map_availability": ""},
-		}
+		for container_id: String in container_data_resources:
+			container_types[container_id] = container_data_resources[container_id].to_config_dict()
 	if backpack_offers.is_empty():
 		backpack_offers = {
 			"backpack_4x4": {"offer_id": "backpack_4x4", "display_name": "4x4 背包",

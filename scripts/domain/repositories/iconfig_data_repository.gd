@@ -32,6 +32,13 @@ func load_container_types() -> Dictionary:
 	return {}
 
 
+## 容器定义 Resource 表（container_id -> ContainerData，Resource 化数据源，
+## 含物品概率系统绑定）。后端未提供 Resource 化数据时返回空 Dictionary，
+## 消费方回退 load_container_types() 字典视图。
+func load_container_data() -> Dictionary:
+	return {}
+
+
 ## 背包档位表（offer_id -> Dictionary）。
 func load_backpack_offers() -> Dictionary:
 	return {}

@@ -46,6 +46,11 @@ func _boot_framework() -> void:
 	## WORD-31：数据层经 RepositoryProvider 按配置装配（memory/sqlite）；
 	## 注入 RunFlowOrchestrator，表现层仍只依赖领域接口/事件总线。
 	var repos := RepositoryProvider.create_set()
+	## 物品 3D 预览模型解析：表现层经注入的回调解耦地读取物品注册态绑定
+	## （ItemData.model / model_scale，INV-16 单一来源；缓存避免重复装载）
+	var _item_data_cache: Dictionary = repos.config_data.load_item_data()
+	ModelPreviewView.set_item_data_resolver(func(definition_id: String) -> ItemData:
+		return _item_data_cache.get(definition_id, null))
 	## 切片 4：注入局内会话服务（RunSession 域，AC-03 双计时/完成数）。
 	## 一局一实例，经共享的局内状态存储读写（禁止全局单例承载运行态，P1-3）。
 	var run_state_store := _InMemoryRunStateStore.new()

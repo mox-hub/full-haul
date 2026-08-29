@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ContainerData" format=3 uid="uid://b8nbtckegcpp3"]
+
+[ext_resource type="Script" path="res://data/containers/container_data.gd" id="1_p0uo2"]
+
+[resource]
+script = ExtResource("1_p0uo2")
+container_id = "crate_wood"
+display_name = "木箱"

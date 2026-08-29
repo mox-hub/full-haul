@@ -12,6 +12,16 @@
 
 ### 新增
 
+- 物品概率系统（搜索系统子系统）：新增 `ItemProbabilitySystem` 领域子系统——容器搜索产出按「品质 × 类型」权重加权随机抽取（权重语义：空表不分层、非空表未列出按 0 排除；随机源可注入固定种子保证测试确定性）；编排器容器物品计划改走概率系统，容器 Resource 显式绑定优先、空表回退共享 tier 权重表（container_tier_config）、池不可用回退确定性轮转；`ItemDefinition` 补 `category` 字段支撑类型维度
+- 容器 Resource 化：新增 `ContainerData` 定义资源（自身属性 kind/tier/格子尺寸/地图可用性 + 物品概率系统绑定 rarity_weights/category_weights + icon/model/model_scale 美术关联）；3 条种子容器落盘 `data/containers/definitions/`（木箱 C1 3x3 / 铁箱 C3 4x4 / 撤离点 2x2）；新建注册表 `data/containers/container_registry.tres`（string_id <-> UID + tier 属性索引）；生成器 `tools/generate_container_data.gd`；内存后端经新增 `ContainerResourceCatalog` 装载并导出 container_types 字典视图；`IConfigDataRepository` 新增 `load_container_data()`
+- 物品弹窗加载绑定模型：`ModelPreviewView` 模型解析升级为三级优先——物品注册态绑定（`ItemData.model` + `model_scale`，经组合根注入回调解耦，缩放参与取景/居中计算）→ 既有 `ITEM_MODEL_PATHS` 路径映射 → 品质色正方体占位
+
+### 测试
+
+- 新增 `tests/domain/test_item_probability_system.gd`（6 用例：种子确定性/品质排除/类型分层/乘积权重/均匀分布/空池）、`tests/domain/test_container_resource_definitions.gd`（6 用例：注册表/属性/字典视图/绑定持久化/绑定作用于概率系统/内存后端装载）；36 套件全绿
+
+### 新增
+
 - 物品模型绑定与描述台词：`ItemData` 新增 `model_scale` 缩放比例字段；生成器按占格大小自动绑定 `assets/models/warehouse/` 本地模型（1x1/2x2/2x3 -> box-1-1-1 @1.0/1.7/2.2，长条 1x2/1x3/1x4 -> box-05-05-1 @1.3/1.9/2.4，normalize 后短长边选档），全量 145 条 .tres 完成 ExtResource 绑定（模型为本地资产不入库，缺文件时 model 装载 null、消费方回退占位）；描述台词按「这是一个{{名称}}，它的品质是{{品质}}。」模板生成；生成器对手调值有保留策略（description 非空/model 非空/model_scale≠1 不覆盖）
 
 ### 变更

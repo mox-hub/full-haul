@@ -31,6 +31,10 @@ func load_container_types() -> Dictionary:
 	return _store.container_types
 
 
+func load_container_data() -> Dictionary:
+	return _store.container_data_resources
+
+
 func load_backpack_offers() -> Dictionary:
 	return _store.backpack_offers
 
